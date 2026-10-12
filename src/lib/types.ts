@@ -19,10 +19,14 @@ export interface Patient {
   alerts?: PatientAlert[];
 }
 export interface PatientAlert { id: string; type: "Allergy" | "Medical" | "Skin" | "Other"; description: string; severity?: "Low" | "Moderate" | "High"; source: string; date: string; author: string }
+/** Short, human-readable log of what happened to an appointment (cancelled, rescheduled). Keeps history when a record is reused. */
+export interface AppointmentEvent { at: string; text: string }
 export interface Appointment {
   id: string; patientId: string; providerId: string; serviceId: string;
   date: string; time: string; duration: number; locationId: string; roomId: string;
-  status: ApptStatus; notes?: string; arrivedAt?: number; visitId?: string;
+  status: ApptStatus; notes?: string; arrivedAt?: number; visitId?: string; events?: AppointmentEvent[];
+  /** Set when the patient booked it themselves through the online booking page (demo). */
+  origin?: "online";
 }
 export interface PlotPoint { id: string; x: number; y: number; product: string; units: number; note: string; area?: string; lot?: string; view?: "front" | "left" | "right" }
 export interface PlotVersion { version: number; author: string; at: string; points: PlotPoint[] }

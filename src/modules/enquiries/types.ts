@@ -2,13 +2,13 @@ import type { ApptStatus } from "@/lib/types";
 
 export const ENQUIRY_STATUSES = ["New", "Contacted", "Appointment booked", "Closed", "Not converted"] as const;
 export type EnquiryStatus = (typeof ENQUIRY_STATUSES)[number];
-export const ENQUIRY_SOURCES = ["Website form", "Phone call", "Walk-in", "Patient referral", "Social media", "Campaign"] as const;
+export const ENQUIRY_SOURCES = ["Website form", "Phone call", "Walk-in", "Patient referral", "Social media", "Campaign", "Online booking"] as const;
 export type EnquirySource = (typeof ENQUIRY_SOURCES)[number];
 
 export interface EnquiryTask { id: string; due: string; note: string; assigneeId?: string; done: boolean }
 export interface EnquiryActivity { id: string; at: string; text: string; /** Computed from the linked appointment, never stored. */ derived?: boolean }
 /** Read-only summary of the PMS appointment an enquiry is linked to. */
-export interface LinkedAppointment { id: string; date: string; time: string; status: ApptStatus; providerId: string; serviceId: string }
+export interface LinkedAppointment { id: string; date: string; time: string; status: ApptStatus; providerId: string; serviceId: string; events?: { at: string; text: string }[] }
 export interface Enquiry {
   id: string;
   name: string; phone?: string; email?: string;

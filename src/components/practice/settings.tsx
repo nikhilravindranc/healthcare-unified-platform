@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { Alert, Badge, Button, Checkbox, Field, Input, Panel, PanelHeader, Select, Td, Textarea, Th } from "@/components/ui";
 import { Denied } from "@/components/patient/shared";
 import { CLINIC_CONFIG, CLINIC_TYPES, logAudit, PERMS, ROLE_PERMS, saveClinic, saveRolePerms, type ClinicType, type PermKey, type Role } from "@/lib/clinical";
+import { parseDateRanges } from "@/lib/availability-rules";
+import { TODAY } from "@/lib/db";
 import { saveSettings, useSettings, type Settings } from "@/lib/settings";
 import { agents } from "@/lib/insight";
 import { useAudit, useRole } from "@/lib/hooks";
@@ -42,6 +44,7 @@ export function SettingsSection() {
   const v = { ...s, ...d } as Settings;
   const set = (p: Partial<Settings>) => setD({ ...d, ...p });
   const dirty = Object.keys(d).length > 0;
+  const closed = parseDateRanges(v.closedDates, Number(TODAY.slice(0, 4)));
   const save = (label: string) => { saveSettings(d); if (d.clinicType) saveClinic(d.clinicType); logAudit("Meera Iyer", "Changed settings", `${label}: ${Object.keys(d).join(", ")}`); setD({}); toast.success(`${label} saved`); };
   if (!can("settings")) return <Denied what="settings" />;
   const cur = SECTIONS.find((x) => x.id === sec) ?? SECTIONS[0];
@@ -74,8 +77,10 @@ export function SettingsSection() {
         {sec === "appointments" && <Block title="Appointments" dirty={dirty} onSave={() => save("Appointments")}>
           <div className="grid gap-4 sm:grid-cols-3"><Field label="Opens"><Input type="time" value={v.openTime} onChange={(e) => set({ openTime: e.target.value })} /></Field><Field label="Closes"><Input type="time" value={v.closeTime} onChange={(e) => set({ closeTime: e.target.value })} /></Field><Field label="Default duration (min)"><Input type="number" min={5} value={v.defaultDuration} onChange={(e) => set({ defaultDuration: Number(e.target.value) })} /></Field>
             <Field label="Buffer between visits (min)"><Input type="number" min={0} value={v.bufferMin} onChange={(e) => set({ bufferMin: Number(e.target.value) })} /></Field><Field label="Late cancellation window (hours)"><Input type="number" min={0} value={v.cancelHours} onChange={(e) => set({ cancelHours: Number(e.target.value) })} /></Field><Field label="No-show rule"><Input value={v.noShowPolicy} onChange={(e) => set({ noShowPolicy: e.target.value })} /></Field></div>
+          <div className="grid gap-4 sm:grid-cols-2"><Field label="Practice break starts" hint="Leave both empty for no break"><Input type="time" value={v.breakStart} onChange={(e) => set({ breakStart: e.target.value })} /></Field><Field label="Practice break ends"><Input type="time" value={v.breakEnd} onChange={(e) => set({ breakEnd: e.target.value })} /></Field></div>
+          <Field label="Closed dates" hint={`One per line or comma separated, for example 2026-12-25 or 2026-12-24 to 2026-12-26. ${closed.ranges.length} read${closed.invalid.length ? `, not understood: ${closed.invalid.join(", ")}` : ""}.`}><Textarea value={v.closedDates} onChange={(e) => set({ closedDates: e.target.value })} /></Field>
           <Checkbox checked={v.reminders} onChange={(c) => set({ reminders: c })} label="Send appointment reminders (needs a connected messaging integration)" /><Checkbox checked={v.confirmRequests} onChange={(c) => set({ confirmRequests: c })} label="Ask patients to confirm" />
-          <p className="text-xs text-muted">Working hours are enforced when booking: times outside them show a warning.</p></Block>}
+          <p className="text-xs text-muted">Working hours, provider days and time off, the break, closed dates and the buffer are applied when booking, in the app and online: times that break them show a warning, and online booking does not offer them.</p></Block>}
 
         {sec === "records" && <Block title="Patient records" dirty={dirty} onSave={() => save("Patient records")}>
           <div className="grid gap-4 sm:grid-cols-2"><Field label="Patient ID prefix"><Input value={v.idPrefix} onChange={(e) => set({ idPrefix: e.target.value })} /></Field></div>

@@ -62,6 +62,8 @@ export interface CrmContact {
   phone?: string; email?: string; dob?: string;
   /** True when phone, email and date of birth were removed for the viewer's role. */
   detailsHidden: boolean;
+  /** Whether the person can be reached by email or phone. Computed before masking and holds no contact details, so every role may see it. */
+  reach: { email: boolean; phone: boolean };
   patientId?: string;
   patientStatus?: Patient["status"];
   enquiries: Enquiry[];
@@ -120,7 +122,7 @@ export function buildContacts(input: { patients: Patient[]; enquiries: Enquiry[]
     const pv = visits.filter((v) => v.patientId === p.id);
     const past = [...linked.map((e) => e.received), ...appts.filter((a) => a.date <= today).map((a) => a.date), ...pv.map((v) => v.date)].sort();
     out.push({
-      key: `patient:${p.id}`, kind: "patient", name: `${p.first} ${p.last}`.trim(), phone: p.phone, email: p.email, dob: p.dob || undefined, detailsHidden: false,
+      key: `patient:${p.id}`, kind: "patient", name: `${p.first} ${p.last}`.trim(), phone: p.phone, email: p.email, dob: p.dob || undefined, detailsHidden: false, reach: { email: !!p.email || linked.some((e) => !!e.email), phone: !!p.phone || linked.some((e) => !!e.phone) },
       patientId: p.id, patientStatus: p.status, enquiries: linked, appointments: appts,
       stage: derivePatientStage(appts, pv, today), firstTouch: deriveFirstTouch(linked, p), consent: deriveConsent(p), lastActivity: past[past.length - 1],
     });
@@ -128,7 +130,7 @@ export function buildContacts(input: { patients: Patient[]; enquiries: Enquiry[]
   // A link to a patient that does not exist is treated as no link: the person stays an enquiry-only contact.
   for (const e of enquiries.filter((x) => !x.patientId || !patientIds.has(x.patientId))) {
     out.push({
-      key: `enquiry:${e.id}`, kind: "enquiry-only", name: e.name, phone: e.phone, email: e.email, detailsHidden: false,
+      key: `enquiry:${e.id}`, kind: "enquiry-only", name: e.name, phone: e.phone, email: e.email, detailsHidden: false, reach: { email: !!e.email, phone: !!e.phone },
       enquiries: [e], appointments: [], stage: deriveEnquiryStage(e), firstTouch: deriveFirstTouch([e]), consent: deriveConsent(), lastActivity: e.received,
     });
   }

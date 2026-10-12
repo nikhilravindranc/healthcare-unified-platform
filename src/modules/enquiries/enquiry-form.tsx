@@ -43,7 +43,7 @@ export function EnquiryFormSheet({ open, enquiry, onClose, onSaved }: { open: bo
         </div>
         <Field label="Requested service"><Select {...f.register("serviceId")}><option value="">Not sure / general enquiry</option>{refs?.services.filter((s) => s.status === "Active").map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</Select></Field>
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Source" required error={errors.source?.message}><Select {...f.register("source")}>{ENQUIRY_SOURCES.map((s) => <option key={s}>{s}</option>)}</Select></Field>
+          <Field label="Source" required error={errors.source?.message}><Select {...f.register("source")}>{ENQUIRY_SOURCES.filter((s) => s !== "Online booking").map((s) => <option key={s}>{s}</option>)}</Select></Field>
           <Field label="Assigned to"><Select {...f.register("assigneeId")}><option value="">Unassigned</option>{staff.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</Select></Field>
         </div>
         {!editing && <Field label="Next follow-up date" hint="Optional. Creates a first-contact task."><Input type="date" min={TODAY} {...f.register("nextFollowUp")} /></Field>}

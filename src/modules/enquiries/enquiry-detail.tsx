@@ -15,6 +15,8 @@ import { taskSchema, type TaskInput } from "./schemas";
 import { ENQUIRY_STATUSES, type Enquiry, type EnquiryStatus } from "./types";
 import { useBookEnquiry } from "./use-book";
 import { useEnquiryAccess } from "./enquiry-actions";
+import { CommunicationPanel } from "../comms/communication-panel";
+import { consentFromFlag } from "../comms/eligibility";
 
 const digits = (s?: string) => (s ?? "").replace(/\D/g, "");
 const Row = ({ l, children }: { l: string; children: React.ReactNode }) => <div className="flex justify-between gap-4 py-1.5 text-[13px]"><dt className="text-muted">{l}</dt><dd className="text-right font-medium">{children}</dd></div>;
@@ -113,6 +115,8 @@ export function EnquiryDetailSheet({ enquiry, needPatient: askPatient, onClose, 
               </div>
               {e.bookingLost && <div className="mt-2"><Alert tone="warn" title="This appointment was not kept">It was {e.appointment.status === "cancelled" ? "cancelled" : "missed"}, so the enquiry is open again. Book a new appointment to continue. The history below is kept.</Alert></div>}
             </section>)}
+
+          <section><H>Messages</H><CommunicationPanel subject={{ name: e.name, enquiryId: e.id, patientId: e.patientId, appointmentId: e.appointmentId, reach: { email: !!e.email, phone: !!e.phone }, consent: consentFromFlag(patient?.marketingConsent) }} canCompose={!readOnly} canReadText={!readOnly} /></section>
 
           {e.notes && <section><H>Notes</H><p className="whitespace-pre-wrap text-[13px]">{e.notes}</p></section>}
 

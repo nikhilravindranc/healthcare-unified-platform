@@ -1,6 +1,11 @@
 "use client";
-import { ModuleSkeleton } from "@/platform/module-skeleton";
+import { CampaignsPage } from "@/modules/campaigns/campaigns-page";
+import { MODULES } from "@/platform/modules";
+import { RouteGuard } from "@/platform/route-guard";
 
-export default function CampaignsPage() {
-  return <ModuleSkeleton id="campaigns" notice="No campaigns can be created or sent yet and no email or SMS provider is connected. To see how enquiries are generated, open Marketing Insights (demo data)." planned={["Audiences from Contact tags and consent", "Email and SMS campaigns", "Unsubscribe and consent enforcement", "Delivery and conversion reporting"]} />;
+const m = MODULES.find((x) => x.id === "campaigns")!;
+
+/** Permission and module-switch checks happen here, so the direct URL follows the same rules as the menu. */
+export default function CampaignsRoute() {
+  return <RouteGuard title={m.label} perms={m.perms} module="campaigns"><CampaignsPage /></RouteGuard>;
 }

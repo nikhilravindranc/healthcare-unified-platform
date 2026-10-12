@@ -129,12 +129,13 @@ test("original demo patients no longer carry an invented acquisition source", ()
 });
 
 test("only explicitly recorded demo consent is shown as granted or withdrawn; everything else is not recorded", () => {
-  assert.equal(patients.filter((p) => p.marketingConsent === true).length, 1);     // Sarah Johnson, recorded
-  assert.equal(patients.filter((p) => p.marketingConsent === false).length, 1);    // Emily Carter, recorded
-  assert.equal(patients.filter((p) => p.marketingConsent === undefined).length, patients.length - 2);
+  assert.equal(patients.filter((p) => p.marketingConsent === true).length, 7);     // seven recorded "yes" decisions, set explicitly in the demo seed
+  assert.equal(patients.filter((p) => p.marketingConsent === false).length, 2);    // two recorded "no" decisions
+  assert.equal(patients.filter((p) => p.marketingConsent === undefined).length, patients.length - 9);
+  assert.ok(patients.filter((p) => p.id.startsWith("P-104")).every((p) => p.marketingConsent === undefined));   // converted patients: no consent was ever asked
   const list = buildContacts({ patients, enquiries: demoEnquiries, appointments, visits: [], today: TODAY });
   const by = (s: string) => list.filter((c) => c.consent.status === s);
-  assert.deepEqual([by("granted").length, by("withdrawn").length, by("not-recorded").length], [1, 1, 58]);
-  assert.equal(by("granted")[0].patientId, "P-10248");
+  assert.deepEqual([by("granted").length, by("withdrawn").length, by("not-recorded").length], [7, 2, 51]);
+  assert.ok(by("granted").some((c) => c.patientId === "P-10248"));
   assert.ok(list.filter((c) => c.kind === "enquiry-only").every((c) => c.consent.status === "not-recorded"));   // an enquiry is never consent
 });

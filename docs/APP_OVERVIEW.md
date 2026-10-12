@@ -14,7 +14,7 @@ A clickable, frontend-only web app. One part is a complete Practice Management S
 | Forms | react-hook-form + zod 4 validation |
 | Feedback | sonner toasts |
 | Persistence | None server-side. `localStorage` for session, role, permissions, settings, sidebar; sample data in memory |
-| Tests | `npm test`: 28 unit tests for permissions, the shared seed, appointment/insights logic, the Flow layout and CRM contact derivation. No UI test suite |
+| Tests | `npm test`: 57 unit tests for permissions, the shared seed, appointment/insights logic, the Flow layout, CRM contact derivation, appointment rules, messaging eligibility, campaigns and online booking. No UI test suite |
 | Run | `npm run dev` (development), `npm run build` then `npm run start` (production check) |
 
 Note: this Next.js version differs from older ones. [AGENTS.md](../AGENTS.md) tells developers to read `node_modules/next/dist/docs/` before changing framework code.
@@ -26,8 +26,8 @@ Note: this Next.js version differs from older ones. [AGENTS.md](../AGENTS.md) te
 | Enquiries | `/enquiries` | Working demo: list, filters, create/edit, status, follow-up tasks, link patient, book appointment |
 | Marketing Insights | `/marketing-insights` | Working demo on sample data |
 | CRM | `/crm` | Working read-only contact directory (preview). Patients plus enquiry-only people, with search, stage and source filters and a detail panel. Reached from the account menu |
-| Online Bookings | `/booking` | Preview only |
-| Campaigns | `/campaigns` | Preview only |
+| Online Bookings | `/booking` (staff), `/book` (public) | Working in demo mode: public booking journey that follows provider days, time off, breaks, closed dates and notice rules (on demo data), practice settings, list of online bookings |
+| Campaigns | `/campaigns` | Working in demo mode: campaign list and editor, consent-based audience preview, simulated runs. Nothing is sent |
 
 Modules are registered in `src/platform/modules.ts` and appear in the sidebar's "Growth & Engagement" group (CRM in the account menu) when the module is switched on and the role has a matching permission.
 
@@ -42,8 +42,10 @@ Modules are registered in `src/platform/modules.ts` and appear in the sidebar's 
 - **Actions**: create and edit an enquiry (validated; phone or email required; no clinical details collected), change status, assign staff, close or mark not converted, link to an existing patient (matches are suggested, never automatic) or create a patient (demo), and book an appointment using the existing appointment panel, prefilled from the enquiry. Booking marks the enquiry "Appointment booked".
 - **Marketing Insights (`/marketing-insights`)**: total enquiries, appointments from enquiries, enquiry-to-appointment rate, enquiries over time, by source, conversion by source and campaign attribution. Labelled demo data. No ad platform or analytics is connected.
 - **Today page**: an "Enquiries to follow up" panel and a "New enquiry" quick action, for roles with the Enquiries permission.
-- **CRM (`/crm`)**: a read-only directory of every patient and every enquiry-only person (25 patients plus 35 enquiry-only people in the demo). Search by name, phone or email, filter by derived stage and first-touch source, and open a detail panel with the enquiries and appointments linked to the person and links to the patient, enquiry and appointment screens. People are never merged by name, phone or email. Consent shows "Not recorded" unless a decision is recorded on the patient (only two demo patients have one), and no consent date or source is ever shown because none is stored. Marketing sees names, stage, source and a date and status for appointments, but phone, email, date of birth, patient ids and appointment details are hidden, and it gets no links into patient records. Original demo patients show source "Unknown" because no referral is recorded for them.
-- **Previews**: Online Bookings and Campaigns pages explain what is planned and are labelled "Preview".
+- **CRM (`/crm`)**: a read-only directory of every patient and every enquiry-only person (25 patients plus 35 enquiry-only people in the demo). Search by name, phone or email, filter by derived stage and first-touch source, and open a detail panel with the enquiries and appointments linked to the person and links to the patient, enquiry and appointment screens. People are never merged by name, phone or email. Consent shows "Not recorded" unless a decision is recorded on the patient (only nine demo patients have one), and no consent date or source is ever shown because none is stored. Marketing sees names, stage, source and a date and status for appointments, but phone, email, date of birth, patient ids and appointment details are hidden, and it gets no links into patient records. Original demo patients show source "Unknown" because no referral is recorded for them.
+- **Messages**: every enquiry has a message history and one composer for email, SMS and call logs. Sending is simulated and labelled "Demo only, not delivered". A consent and eligibility summary shows marketing eligibility (an explicit yes is required) separately from service messages. The CRM contact panel shows the same history read-only.
+- **Campaigns (`/campaigns`)**: create and edit email or SMS campaigns, choose an audience by stage and source, and see who is eligible and why others are left out. Only people with explicit marketing consent are eligible, and SMS marketing is always blocked because no SMS consent is stored. Schedule (demo) or "Simulate send", which records simulated messages in recipients' histories. The one set of performance figures is labelled sample data.
+- **Online Bookings**: the practice page (`/booking`) controls which services are offered and lists online bookings. The public page (`/book`) is a five-step journey that ends in a normal appointment. It offers only times the practice could book itself: working hours, each provider's days and time off, the practice break, closed dates, the buffer between visits, a notice period and a booking window, and `/book/manage` lets a person change or cancel with a reference and email. Nothing is emailed or texted.
 
 ### Practice (PMS) module
 - **Today (`/overview`)**: day schedule with filters, "needs attention" list, who is waiting, and a Patient flow (front desk) view with 8 patients per page. `/front-desk` redirects here.
@@ -87,7 +89,7 @@ How they are enforced today (frontend only):
 - Checked in the UI for notes, photos, financials, refunds, inventory, reports, settings and AI actions, and exports (audit-log CSV only). Hidden nav items and "You don't have access" panels.
 - The **Patient data** permission now blocks the patient-facing pages (Today, Calendar, Patients, Visits, Follow-ups, Agents), including by direct URL. Marketing lands on Marketing Insights.
 - Enquiries and Marketing Insights check their permission on the page, not just in the menu. A switched-off optional module also blocks its direct URL.
-- The CRM permission gates the contact directory. Booking and campaign permissions only gate their preview pages, because those modules have no features yet.
+- The CRM permission gates the contact directory. Campaign and booking permissions gate their modules: managing needs `campaigns` or `booking`, and `insights` or `booking_view` alone give a read-only view. Message text needs enquiry management.
 - Practice configuration (Team, Services, Locations, Forms, Integrations) needs the new Practice configuration permission, so Marketing is blocked by menu and direct URL. Inventory and Settings keep their own permissions.
 - Read-only enquiry access (Marketing): the enquiry views hide phone and email and turn off every change.
 - "View as role (demo)" in the account menu switches roles for testing. A real app must do this server-side.
@@ -99,7 +101,7 @@ How they are enforced today (frontend only):
 
 ## 7. Not built or not real
 - Backend, database, real authentication (sessions, MFA, email verification are simulated).
-- CRM pipeline, owners, tasks, merging and editing (the directory is read-only), and Online Bookings and Campaigns features. Messaging, email/SMS sending, online booking page, payment processing, EVOQ Billing and Campaigns connections.
+- CRM pipeline, owners, tasks, merging and editing (the directory is read-only). Real delivery for Campaigns, messages and booking confirmations, real-time availability, identity checks on the public booking page. Messaging, email/SMS sending, online booking page, payment processing, EVOQ Billing and Campaigns connections.
 - Enquiries are not yet part of Reports or EVI agents, and enquiry follow-up tasks are separate from patient Follow-ups.
 - Real AI. File storage (uploaded photos and documents are not persisted).
 - UI-level automated tests, accessibility audit, audit-log persistence, data export beyond the audit-log CSV.
@@ -113,7 +115,7 @@ How they are enforced today (frontend only):
 
 ## 9. Options for the next step
 1. **Hand off as is** to the backend developer with ARCHITECTURE.md and this file, and agree the API and identity model first.
-2. **Build the next module's UI**, most reuse first: Online Bookings (can reuse providers, services, rooms and availability), then CRM, then Campaigns (audiences and consent).
+2. **Agree the identity and consent model** in `docs/IDENTITY_DECISIONS.md` with the backend developer, then replace the demo data layers behind `enquiriesApi`, `commsApi`, `campaignsApi` and `bookingApi`.
 3. **Close remaining permission gaps**: view-only booking behavior, and field-level rules for what read-only roles may see.
 4. **Split the shell** into a generic platform shell plus PMS-only parts, so new modules don't depend on PMS panels.
 5. **Clean-up**: tests, renaming internal `pms.*` keys, removing sample-data clock assumptions.

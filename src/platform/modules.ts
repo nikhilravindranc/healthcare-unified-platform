@@ -10,13 +10,14 @@ export interface ModuleDef {
   perms?: PermKey[];
   /** Optional modules can be switched off per clinic (Practice > Integrations). */
   optional?: boolean;
-  status: "live" | "preview";
+  /** live: working with demo data. demo: working but simulated (nothing is sent or delivered). */
+  status: "live" | "demo";
 }
 export const MODULES: ModuleDef[] = [
   { id: "pms", label: "Practice", blurb: "Patients, visits, billing", icon: Stethoscope, href: "/overview", status: "live" },
-  { id: "crm", label: "CRM", blurb: "Leads, contacts, pipeline", icon: Contact, href: "/crm", perms: ["crm"], optional: true, status: "preview" },
-  { id: "booking", label: "Online Bookings", blurb: "Online booking engine", icon: CalendarCheck, href: "/booking", perms: ["booking", "booking_view"], optional: true, status: "preview" },
-  { id: "campaigns", label: "Campaigns", blurb: "Email and SMS campaigns", icon: Megaphone, href: "/campaigns", perms: ["campaigns", "insights"], optional: true, status: "preview" },
+  { id: "crm", label: "CRM", blurb: "Leads, contacts, pipeline", icon: Contact, href: "/crm", perms: ["crm"], optional: true, status: "demo" },
+  { id: "booking", label: "Online Bookings", blurb: "Online booking engine", icon: CalendarCheck, href: "/booking", perms: ["booking", "booking_view"], optional: true, status: "demo" },
+  { id: "campaigns", label: "Campaigns", blurb: "Email and SMS campaigns", icon: Megaphone, href: "/campaigns", perms: ["campaigns", "insights"], optional: true, status: "demo" },
 ];
 
 export interface GrowthNavItem { href: string; label: string; icon: LucideIcon; perms: PermKey[]; module?: ModuleDef["id"] }

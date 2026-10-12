@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { isOpenStatus } from "@/lib/appointment-rules";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FileText, Plus, Upload } from "lucide-react";
@@ -14,7 +15,7 @@ export function VisitsTab({ p }: { p: Patient }) {
   const { data: visits } = useVisits(); const { data: appts } = useAppointments(); const { data: refs } = useRefs(); const { can } = useRole();
   const router = useRouter(); const ui = useUI();
   const v = (visits ?? []).filter((x) => x.patientId === p.id).sort((a, b) => b.date.localeCompare(a.date));
-  const up = (appts ?? []).filter((a) => a.patientId === p.id && a.date >= TODAY && !a.visitId && !["completed", "cancelled", "no_show"].includes(a.status)).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+  const up = (appts ?? []).filter((a) => a.patientId === p.id && a.date >= TODAY && !a.visitId && isOpenStatus(a.status)).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
   return (
     <Panel>
       {up.length === 0 && v.length === 0 ? <EmptyState title="No visits yet" text="Book an appointment or start a visit." /> : (

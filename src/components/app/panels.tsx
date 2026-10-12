@@ -5,7 +5,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CheckCircle2, ChevronDown, TriangleAlert } from "lucide-react";
 import { Alert, Button, ConfirmDialog, Field, Input, Modal, Select, Sheet, Skeleton, StatusBadge, Textarea } from "@/components/ui";
-import { useAction, useAppointments, usePatients, useRefs, useVisits, useFollowUps, useNow } from "@/lib/hooks";
+import { useAction, useAppointments, usePatients, useRefs, useRole, useVisits, useFollowUps, useNow } from "@/lib/hooks";
+import { useEnquiries } from "@/modules/enquiries/hooks";
 import { api, checkConflicts, fmtDate, fmtTime, freeSlots, fromMin, TODAY, addDays, nowMin } from "@/lib/db";
 import { appointmentSchema, patientSchema, type AppointmentInput, type PatientInput } from "@/lib/schemas";
 import { useUI } from "./ui-state";
@@ -49,6 +50,8 @@ export function AppointmentPanel({ id, onClose }: { id: string | null; onClose: 
   const { data: refs } = useRefs();
   const { data: visits } = useVisits();
   const { data: fus } = useFollowUps();
+  const { can } = useRole();
+  const { data: enquiries } = useEnquiries();
   const ui = useUI();
   const router = useRouter();
   const now = useNow();
@@ -75,6 +78,8 @@ export function AppointmentPanel({ id, onClose }: { id: string | null; onClose: 
   const startVisit = async () => { const v = await start.run(a!.id); toast.success("Visit started"); onClose(); router.push(`/visits/${v.id}`); };
   const name = p ? `${p.first} ${p.last}` : "";
   const st = a?.status;
+  /** The enquiry this appointment was booked from, so the user can go back to it. Only shown to roles that may see enquiries. */
+  const fromEnquiry = a && (can("enquiries") || can("enquiries_view")) ? enquiries?.find((e) => e.appointmentId === a.id || e.previousAppointmentIds?.includes(a.id)) : undefined;
 
   return (
     <>
@@ -113,8 +118,13 @@ export function AppointmentPanel({ id, onClose }: { id: string | null; onClose: 
               <p>Last visit: {last ? `${fmtDate(last.date)} · ${last.type}` : "None on record"}</p>
               <p>Upcoming follow-up: {nextFu ? `${nextFu.type}, ${fmtDate(nextFu.due)}` : "None"}</p>
             </div>
+            {a.events && a.events.length > 0 && (
+              <div className="text-[13px]"><p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted">History</p>
+                <ul className="space-y-1">{[...a.events].reverse().map((ev, i) => <li key={i}>{ev.text}<span className="ml-1.5 text-xs text-muted">{fmtDate(ev.at, true)}</span></li>)}</ul></div>
+            )}
             <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="secondary" onClick={() => { onClose(); router.push(`/patients/${p.id}`); }}>Open patient</Button>
+              {fromEnquiry && <Button size="sm" variant="secondary" onClick={() => { onClose(); router.push(`/enquiries?open=${fromEnquiry.id}`); }}>Open enquiry</Button>}
               {st !== "completed" && st !== "cancelled" && st !== "no_show" && <Button size="sm" variant="soft" onClick={() => { onClose(); ui.evi({ prep: { patientId: p.id, apptId: a.id } }); }}>Prepare this visit</Button>}
               {(st === "scheduled" || st === "confirmed" || st === "arrived" || st === "waiting") && <>
                 <Button size="sm" variant="secondary" onClick={() => setResched((r) => !r)}>Reschedule</Button>

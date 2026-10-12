@@ -5,8 +5,8 @@
 |---|---|---|---|
 | PMS | existing top-level routes (`/overview`, `/patients`, `/practice/*`) | live | patients, visits, billing, inventory |
 | CRM | `/crm` | preview (Contacts v1) | read-only contact directory: patients and enquiry-only people, stage, first-touch source, relationship history |
-| Booking | `/booking` | skeleton | public booking, availability, booking requests |
-| Campaigns | `/campaigns` | skeleton | audiences, email/SMS sends, delivery stats |
+| Online Bookings | `/booking` (staff), `/book` and `/book/manage` (public) | demo | public self-service booking journey, offered services, online bookings list |
+| Campaigns | `/campaigns` | demo | campaign list and editor, consent-based audience preview, simulated runs |
 
 Registry: `src/platform/modules.ts`. The shell builds nav from it, filtered by permission.
 
@@ -33,7 +33,7 @@ Registry: `src/platform/modules.ts`. The shell builds nav from it, filtered by p
 | CRM | Broader contact visibility: who a person is across patients and enquiries, how they first found the practice, and their enquiry and appointment history. Read-only today. It owns no records and has no pipeline or tasks of its own. |
 | Contact (shared identity) | A person across products, linked to Patient and CRM records by stable IDs. Records are linked, not duplicated. |
 
-`Patient.contactId` stays a proposed relationship. No migration in the frontend-only phase (`src/platform/contact.ts` is the type sketch).
+See `docs/IDENTITY_DECISIONS.md` for the options, recommendations and API boundaries to agree. `Patient.contactId` stays a proposed relationship. No migration in the frontend-only phase (`src/platform/contact.ts` is the type sketch).
 
 **Enquiry to patient**
 1. Enquiries creates an enquiry for a person who is not yet a patient (CRM shows them as an enquiry-only contact).
@@ -77,15 +77,38 @@ One person may have several enquiries and appointments, or become a patient late
 - **Stage** (derived): enquiry-only New or Contacted is Prospect, Closed or Not converted is Not converted. Patients: a completed appointment or visit within 90 days, or a live appointment ahead, is Active patient. Older completed history with nothing ahead is Lapsed patient. No completed history but a live appointment from today on is Appointment booked. Otherwise Patient, no activity. Cancelled and no-show appointments never count as live.
 - **First-touch source.** The earliest linked enquiry, else the patient's recorded referral, else Unknown. Enquiry sources are used as they are. Referral values map as: Website enquiry becomes Website form, Patient referral, Walk-in and Social media map to themselves, and Provider referral stays as its own source. Anything else (for example free text such as a doctor's name) becomes "Other (as recorded)" and keeps its raw text.
 - **Seed sources.** The original demo patients no longer carry a default referral. Earlier seed data gave every one of them "Website enquiry", which was a generic default rather than recorded history. Now only Sarah Johnson has a referral (a free-text name, shown as "Other (as recorded)"). The other original patients show "Unknown" until an enquiry or a referral is recorded. Patients created from enquiries get their source from the enquiry.
-- **Consent.** The patient record stores `marketingConsent` as yes, no or nothing recorded (undefined). No demo patient gets a default: only Sarah Johnson (granted) and Emily Carter (not granted) have a recorded decision, and everyone else, including every enquiry-only person, is "Not recorded". The patient edit form offers Not recorded, Granted and Not granted, and saving without touching it keeps the value unrecorded. An enquiry is never treated as consent. No consent date or source exists, so the directory shows "Date not recorded" and "Source not recorded". A missing value shows "Not recorded", never "Granted".
+- **Consent.** The patient record stores `marketingConsent` as yes, no or nothing recorded (undefined). No demo patient gets a default: nine original patients have an explicit recorded decision in the seed (seven granted, two not granted), and everyone else, including every enquiry-only person and every patient created from an enquiry or online booking, is "Not recorded". The patient edit form offers Not recorded, Granted and Not granted, and saving without touching it keeps the value unrecorded. An enquiry is never treated as consent. No consent date or source exists, so the directory shows "Date not recorded" and "Source not recorded". A missing value shows "Not recorded", never "Granted".
 - **Permissions (demo).** `/crm` needs the `crm` permission and the module switch. Phone, email and date of birth need `patients` or `enquiries`, so Marketing sees them hidden in the list, the detail panel and search. Without `patients`, `maskContact` also removes the patient id and status and every appointment detail except its date and status (no service, provider, time or appointment id), and replaces the render key, so those values never reach the page. Links into patient records and the appointment panel need `patients`. Enquiry links open the enquiry in its own read-only panel, which shows only the appointment date and status and replaces record ids in the history text. A requested service on an enquiry stays visible to Marketing, as it already does in the read-only Enquiries views.
 - **Not in CRM:** no pipeline, tasks, follow-up status, merging, editing or record creation. Those stay in Enquiries or Practice Management.
+
+## Appointment rules (`src/lib/appointment-rules.ts`)
+One place defines what a status means: **lost** is cancelled or no-show (never a successful booking, never upcoming, never a seen patient), **open** is anything not completed, cancelled or no-show, and **upcoming** is an open appointment from today on. Patients, patient detail, summaries, agents and the enquiry join all use it instead of repeating status lists. `Appointment.events` logs cancelled, no-show and rescheduled, so reviving a cancelled appointment keeps its history, and the enquiry shows those events. Rescheduling a completed or in-progress appointment is rejected. Booking from an enquiry first offers to link a matching upcoming appointment of the same patient instead of creating a duplicate. The appointment panel has an "Open enquiry" link when the appointment came from one.
+
+## Communications (`src/modules/comms/`)
+- One `Message` model (channel email, SMS or call log; direction; status draft, simulated, received or logged; purpose service or marketing) and one reusable `CommunicationPanel`: history, a consent and eligibility summary, and one composer. The composer is only in the Enquiry detail panel. The CRM contact panel shows the same history read-only, and says to reply from the enquiry, so messages are written in one place.
+- `eligibility.ts` is the single rule, also used by Campaigns: marketing needs an explicit granted consent for the channel, and a way to reach the person. Not recorded and withdrawn both block it. SMS marketing is always blocked because only an email-marketing decision is stored. Service messages need no marketing consent but need a phone or email. Calls are only logged.
+- `commsApi.send` re-checks eligibility and refuses ineligible sends. A send is stored as **simulated** ("Demo only, not delivered"). The UI never says sent or delivered. Message text is hidden for roles without enquiry management.
+- Sample history is built only from what the sample enquiries support (how each arrived, and a simulated service reply once contacted).
+
+## Campaigns (`src/modules/campaigns/`)
+- `audience.ts` filters the CRM contacts by derived stage and first-touch source (no second taxonomy) and applies the shared eligibility rule, returning matched, eligible and left-out people and a count per reason. The editor shows that preview live.
+- A campaign is Draft, Scheduled (demo) or Run in demo mode. "Simulate send" records one simulated marketing message per eligible recipient, so each recipient's history shows the campaign, and then locks the campaign (duplicate it to run again). Scheduling needs a date and at least one eligible person.
+- The only performance figures are on one seeded campaign, labelled **Sample data** and sized to the demo audience. Appointment confirmations and reminders are not part of Campaigns.
+- The demo seed records an explicit email-marketing decision for 9 original patients (7 granted, 2 not granted) so audiences can be shown. Everyone else, including all enquiry-only people, has none, and is left out with the reason "No marketing consent recorded".
+- `campaigns` permission manages campaigns, and `insights` alone gives a read-only view. The module switch and route guard apply.
+
+## Online Bookings (`src/modules/booking/`)
+- **Public journey** at `/book` (no staff navigation, no internal data): service, provider (or any available), date and time, details, review, confirmation. It reuses the internal rules, `freeSlots` and `checkConflicts`, so an offered time is one the practice could book internally. Availability rules live in `src/lib/availability-rules.ts` (pure, tested) and are applied inside `checkConflicts`, so the appointment form and online booking agree: clinic working hours, each provider's days and hours (read from the existing `hours` text, for example "Mon–Fri · 8:30 AM–5:00 PM"), provider time off (the existing `timeOff` text), a practice break, closed dates, and the buffer between visits (the existing `bufferMin` setting). Text that cannot be read gives no rule and is reported, never guessed. Staff booking internally get a warning; online booking refuses. Online booking adds a notice period (`booking.leadHours`, default 2) and a booking window (`booking.windowDays`, default 60, 0 = no limit), both editable on `/booking`. The break and closed dates are settings under Practice > Settings > Appointments and are empty by default. The data is still demo data: a real service must read live provider calendars.
+- A booking creates an ordinary appointment (`origin: "online"`) through the existing API, with a room picked from the location. A new person also gets a patient record and an enquiry with source "Online booking" (so first touch is kept). A returning patient is matched only on exact email and last name together, with no merging on partial matches. Marketing consent is recorded only if the person ticks an opt-in. An existing patient's consent is never changed.
+- `/book/manage` finds an online booking from its reference and email, then cancels or moves it through the same appointment API. It shows only service, provider, place, date and time.
+- **Practice side** at `/booking`: turn the page on or off, choose which active services are offered (settings `booking`), and list online bookings with a link to the appointment. Providers, locations and durations come from the existing configuration. No other booking rules exist.
+- The module switch also turns off the public pages.
 
 ## Known limitations
 - Everything is mock data in memory, and permissions and module toggles live in the browser, so none of it is security.
 - Reports and Agents do not know about enquiries yet. Today has an "Enquiries to follow up" panel and a "New enquiry" quick action.
 - Enquiry follow-up tasks are separate from patient Follow-ups.
-- Campaigns and Online Bookings are previews. CRM is a read-only directory (see "CRM Contacts v1").
+- Campaigns, Online Bookings and messaging run in demo mode: they use the shared demo records and never send, deliver or measure anything real.
 - Drag and drop between Board stages was verified with native browser drag events (Chrome DevTools Protocol): plain moves, reopen, a booking without a linked patient (opens the link prompt), a booking with a linked patient (opens the prefilled appointment panel) and read-only (no draggable cards). The in-app browser tool cannot deliver the final drop event, so that tool alone cannot confirm it. The card menu ("Move to ...") is the keyboard alternative.
 - Live camera capture is not testable here. Photos were tested with the sample image.
 - Reports keeps its own copy of its line chart. `components/app/charts.tsx` serves the new screens.
@@ -94,7 +117,7 @@ One person may have several enquiries and appointments, or become a patient late
 `npm test` runs Node's built-in test runner on `tests/*.test.ts` (type stripping needs Node 22.18 or later). They cover the permission-override logic, the appointment join and insights counts, and the Flow layout. UI behavior is checked manually in the browser.
 
 ## Phases
-1. (done) Registry, perms, nav entries, skeleton pages, Contact type sketch. CRM Contacts v1 (read-only directory) is done too.
+1. (done) Registry, perms, nav entries, Contact type sketch, CRM Contacts v1, shared appointment rules, communications foundation, Campaigns and Online Bookings in demo mode.
 2. Agree identity ownership with the backend developer, then implement it consistently when the backend is ready (Contact link, dedupe review, consent enforcement). Deferred: no Contact source-of-truth migration now. Extract `PlatformShell`.
 3. Build modules in order Booking (reuses PMS availability), CRM, Campaigns (needs the consent model).
 4. Optionally move PMS under `/pms/*` with redirects once other modules exist.

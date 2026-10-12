@@ -19,7 +19,7 @@ const clean = (v: string) => (v ? v : undefined);
 
 const linked = (id: string): LinkedAppointment | undefined => {
   const a = appointments.find((x) => x.id === id);
-  return a && { id: a.id, date: a.date, time: a.time, status: a.status, providerId: a.providerId, serviceId: a.serviceId };
+  return a && { id: a.id, date: a.date, time: a.time, status: a.status, providerId: a.providerId, serviceId: a.serviceId, events: a.events };
 };
 
 export const enquiriesApi = {
@@ -68,6 +68,12 @@ export const enquiriesApi = {
     const p = await pmsApi.createPatient(patient); const e = find(id); e.patientId = p.id; note(e, `Patient ${p.id} created (demo) by ${by}`); return p;
   },
   /** Links the real appointment record. Rejects unknown appointments or ones for a different patient. */
+  /** A new person who booked online: recorded as an enquiry that arrived already converted, so the source and history are kept. */
+  async createFromOnlineBooking(i: { name: string; phone: string; email: string; serviceId?: string; patientId: string; appointmentId: string }) {
+    const e: Enquiry = { id: `E-${uid("n").slice(2)}`, name: i.name, phone: i.phone, email: i.email, serviceId: i.serviceId, source: "Online booking", received: TODAY, status: "Appointment booked", notes: "", patientId: i.patientId, appointmentId: i.appointmentId, tasks: [], history: [] };
+    note(e, "Booked online by the patient (demo)"); note(e, `Appointment ${i.appointmentId} booked`);
+    enquiries.unshift(e); return lag(e, 100);
+  },
   async appointmentBooked(id: string, appointmentId: string, by: string) {
     const e = find(id); const a = appointments.find((x) => x.id === appointmentId);
     if (!a || (e.patientId && a.patientId !== e.patientId)) throw new Error("appointment does not match this enquiry");

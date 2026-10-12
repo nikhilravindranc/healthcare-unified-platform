@@ -6,6 +6,7 @@ import { useUI } from "@/components/app/ui-state";
 import { fmtDate, fmtTime } from "@/lib/db";
 import { useRefs } from "@/lib/hooks";
 import { EnquiryStatusBadge } from "../enquiries/status";
+import { CommunicationPanel } from "../comms/communication-panel";
 import type { ContactAccess, CrmContact } from "./contacts";
 import { StageBadge } from "./stage-badge";
 
@@ -54,6 +55,8 @@ export function ContactDetailSheet({ contact: c, access, onClose }: { contact?: 
           </section>
 
           {c.patientId && access.patientRecords && <section><H>Patient record</H><Button variant="secondary" size="sm" onClick={() => go(`/patients/${c.patientId}`)}><UserRound className="size-4" />Open patient record</Button></section>}
+
+          <section><H>Communication</H><CommunicationPanel subject={{ name: c.name, enquiryIds: c.enquiries.map((e) => e.id), patientId: c.patientId, reach: c.reach, consent: c.consent }} canCompose={false} canReadText={access.details} onOpenEnquiry={(id) => go(`/enquiries?open=${id}`)} />{c.enquiries.length > 0 && <p className="mt-1.5 text-xs text-muted">To reply, open the enquiry. Messages are written in one place only.</p>}</section>
 
           <section><H>Enquiries ({c.enquiries.length})</H>
             {c.enquiries.length === 0 ? <p className="text-[13px] text-muted">No enquiries linked to this patient.</p> : (

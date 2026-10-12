@@ -1,6 +1,11 @@
 "use client";
-import { ModuleSkeleton } from "@/platform/module-skeleton";
+import { BookingAdmin } from "@/modules/booking/booking-admin";
+import { MODULES } from "@/platform/modules";
+import { RouteGuard } from "@/platform/route-guard";
 
-export default function BookingPage() {
-  return <ModuleSkeleton id="booking" notice="No online booking page is live. Nothing here is connected to patients or the public. Existing appointments are managed in Calendar." planned={["Public booking page per location", "Availability from Practice providers, services and rooms", "Booking requests create or match a Contact", "Confirmations and reminders"]} />;
+const m = MODULES.find((x) => x.id === "booking")!;
+
+/** Permission and module-switch checks happen here, so the direct URL follows the same rules as the menu. */
+export default function BookingRoute() {
+  return <RouteGuard title={m.label} perms={m.perms} module="booking"><BookingAdmin /></RouteGuard>;
 }

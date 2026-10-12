@@ -3,6 +3,7 @@ import {
   providers, TODAY, toMin, visits, fromMin,
 } from "./db";
 import { photos, inventory, invStatus, patientFinancials, money, type PermKey } from "./clinical";
+import { isOpenStatus, isLiveStatus } from "@/lib/appointment-rules";
 
 /* ---------------- Shared helpers ---------------- */
 export const waitingNow = () =>
@@ -46,7 +47,7 @@ export interface AgentDef { id: string; name: string; description: string; actio
 export function scheduleGaps(date = TODAY) {
   const gaps: { providerId: string; from: string; to: string; mins: number }[] = [];
   for (const p of providers) {
-    const appts = appointments.filter((a) => a.date === date && a.providerId === p.id && !["cancelled", "no_show"].includes(a.status)).sort((a, b) => a.time.localeCompare(b.time));
+    const appts = appointments.filter((a) => a.date === date && a.providerId === p.id && isLiveStatus(a.status)).sort((a, b) => a.time.localeCompare(b.time));
     let cursor = Math.max(9 * 60, date === TODAY ? Math.ceil(nowMin() / 15) * 15 : 0);
     for (const a of appts) {
       const s = toMin(a.time);
@@ -156,7 +157,7 @@ export function askEvi(q: string, ctx: EviCtx = {}): EviAnswer {
     if (!pid) {
       const next = todays.filter((a) => a.providerId === "pat" && ["waiting", "arrived", "confirmed", "scheduled"].includes(a.status)).sort((a, b) => a.time.localeCompare(b.time))[0];
       pid = next?.patientId; apptId = next?.id;
-    } else apptId = todays.find((a) => a.patientId === pid && !["completed", "cancelled", "no_show"].includes(a.status))?.id;
+    } else apptId = todays.find((a) => a.patientId === pid && isOpenStatus(a.status))?.id;
     if (!pid) return { text: "You have no upcoming visits to prepare today." };
     const prep = prepSummary(pid, apptId);
     return { kind: "summary", source: "Visits, notes, forms, photos and plots on file", text: `Here is the documented history for ${prep.name}. This is a summary of existing records only.`, prep, links: [{ label: "Open patient", href: `/patients/${pid}` }, ...(apptId ? [{ label: "Start visit", startAppt: apptId }] : [])] };

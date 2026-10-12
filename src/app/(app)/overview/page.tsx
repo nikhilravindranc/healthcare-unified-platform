@@ -1,5 +1,6 @@
 "use client";
 import { Suspense, useEffect, useMemo, useState } from "react";
+import { isOpenStatus } from "@/lib/appointment-rules";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, CalendarCheck, ChevronDown, CalendarClock, CalendarPlus, Camera, CheckCircle2, ChevronLeft, ChevronRight, Clock, CreditCard, FilePlus2, Hourglass, MoreHorizontal, PlayCircle, SlidersHorizontal, UserPlus, X } from "lucide-react";
@@ -61,7 +62,7 @@ function Today() {
   const LIMIT = 7;
   const compact = range === "day" && !showAll && full.length > LIMIT;
   // Compact view: active and upcoming appointments first (next 7), in time order
-  const shown = compact ? full.filter((a) => !["completed", "cancelled", "no_show"].includes(a.status)).slice(0, LIMIT) : full;
+  const shown = compact ? full.filter((a) => isOpenStatus(a.status)).slice(0, LIMIT) : full;
   const waiting = waitingNow();
   const hour = Math.floor(now / 60);
   const greet = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";

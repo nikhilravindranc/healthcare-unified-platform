@@ -9,7 +9,10 @@ export interface Settings {
   maxPhotoMB: number; photoConsentRequired: boolean; photoRetentionYears: number;
   taxRate: number; invoicePrefix: string; dueDays: number; paymentMethods: string; billingOwner: string;
   notifyWaitMin: number; notifyEmail: boolean; notifySms: boolean; notifyAssignments: boolean;
-  modules: Record<string, boolean>; agents: Record<string, boolean>; sessionMinutes: number; mfa: boolean; setupPending: string[];
+  /** Practice break and closed dates (empty = none). Applied to every appointment, internal and online. */
+  breakStart: string; breakEnd: string; closedDates: string;
+  /** Online booking: whether the public page is on, which services it offers (null = every active service), the notice needed, and how far ahead people can book (0 = no limit). */
+  booking: { enabled: boolean; serviceIds: string[] | null; leadHours: number; windowDays: number }; modules: Record<string, boolean>; agents: Record<string, boolean>; sessionMinutes: number; mfa: boolean; setupPending: string[];
 }
 export const DEFAULTS: Settings = {
   clinicName: "Brightwell Clinic", clinicType: "Medical aesthetics", currency: "USD", timezone: "America/Los_Angeles", country: "United States", phone: "(415) 555-0142",
@@ -18,6 +21,8 @@ export const DEFAULTS: Settings = {
   maxPhotoMB: 5, photoConsentRequired: true, photoRetentionYears: 10,
   taxRate: 0, invoicePrefix: "INV-", dueDays: 14, paymentMethods: "Card (recorded manually), Cash, Bank transfer, Cheque", billingOwner: "Practice module (until EVOQ Billing is connected)",
   notifyWaitMin: 15, notifyEmail: true, notifySms: false, notifyAssignments: true,
+  breakStart: "", breakEnd: "", closedDates: "",
+  booking: { enabled: true, serviceIds: null, leadHours: 2, windowDays: 60 },
   modules: { crm: true, booking: true, campaigns: true },
   agents: { prep: true, followup: true, appointment: true, recall: true, noshow: true, insights: true, engagement: false, scribe: false, receptionist: false }, sessionMinutes: 30, mfa: true, setupPending: [],
 };
@@ -28,7 +33,7 @@ export function getSettings(): Settings {
   try { raw = localStorage.getItem(KEY); } catch {}
   if (raw !== cache.raw) {
     let v = DEFAULTS;
-    try { if (raw) { const p = JSON.parse(raw); v = { ...DEFAULTS, ...p, agents: { ...DEFAULTS.agents, ...(p.agents ?? {}) }, modules: { ...DEFAULTS.modules, ...(p.modules ?? {}) } }; } } catch {}
+    try { if (raw) { const p = JSON.parse(raw); v = { ...DEFAULTS, ...p, agents: { ...DEFAULTS.agents, ...(p.agents ?? {}) }, modules: { ...DEFAULTS.modules, ...(p.modules ?? {}) }, booking: { ...DEFAULTS.booking, ...(p.booking ?? {}) } }; } } catch {}
     try { const ct = localStorage.getItem("pms.clinicType") as ClinicType; if (ct && CLINIC_TYPES.includes(ct)) v = { ...v, clinicType: ct }; } catch {}
     cache = { raw, val: v };
   }

@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { isOpenStatus } from "@/lib/appointment-rules";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Pencil, Plus } from "lucide-react";
@@ -79,7 +80,7 @@ export function SummaryTab({ p, goto }: { p: Patient; goto: (t: string) => void 
 
   const myVisits = (visits ?? []).filter((v) => v.patientId === p.id).sort((a, b) => b.date.localeCompare(a.date));
   const done = myVisits.filter((v) => v.status === "Completed");
-  const upcoming = (appts ?? []).filter((a) => a.patientId === p.id && a.date >= TODAY && !["completed", "cancelled", "no_show"].includes(a.status)).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+  const upcoming = (appts ?? []).filter((a) => a.patientId === p.id && a.date >= TODAY && isOpenStatus(a.status)).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
   const next = upcoming.find((a) => a.date > TODAY) ?? upcoming[0];
   const fin = patientFinancials(p.id);
   void billing;
@@ -88,12 +89,73 @@ export function SummaryTab({ p, goto }: { p: Patient; goto: (t: string) => void 
   const treatments = done.filter((v) => v.treatments.length || v.plot.length).length;
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
-      <div className="min-w-0 space-y-5">
-        <dl className="grid grid-cols-2 divide-x divide-y divide-line overflow-hidden rounded-xl border border-line bg-white sm:grid-cols-5 sm:divide-y-0">
-          {[["Total visits", String(done.length)], ["Treatments", String(treatments)], ...(can("financials") ? [["Total paid", money(fin.paid)], ["Outstanding", money(fin.outstanding)]] : []), ["Next appointment", next ? `${next.date === TODAY ? "Today" : fmtDate(next.date)}, ${fmtTime(next.time)}` : "None"]].map(([l, n]) => (
-            <div key={l} className="px-4 py-3"><dd className="text-[17px] font-semibold">{n}</dd><dt className="text-xs text-muted">{l}</dt></div>))}
-        </dl>
+    <div className="@container">
+    <div className="grid items-start gap-5 @min-[860px]:grid-cols-[minmax(0,1fr)_300px] @min-[860px]:grid-rows-[auto_1fr]">
+      {/* The layout follows the width of this area, so it also works with the sidebar collapsed. Alerts come first so an allergy is never below the fold, then who the patient is. On wide screens both sit at the top of the right column. */}
+      <div className="space-y-5 @min-[860px]:col-start-2 @min-[860px]:row-start-1">
+        <Panel>
+          <PanelHeader title="Important information" action={<button onClick={() => setAlertOpen(true)} className="flex items-center gap-1 text-[13px] font-medium text-primary hover:underline"><Plus className="size-3.5" />Add</button>} />
+          {(p.alerts ?? []).length === 0 ? <p className="p-4 text-[13px] text-muted">No alerts recorded. This does not mean the patient has none; confirm at intake.</p> : (
+            <ul className="divide-y divide-line">{p.alerts!.map((a) => (
+              <li key={a.id} className="flex gap-2.5 px-4 py-3 text-[13px]"><AlertTriangle className="mt-0.5 size-4 shrink-0 text-[#9A6200]" aria-hidden />
+                <div><p className="font-medium">{a.type}: {a.description}</p><p className="text-xs text-muted">{a.severity ? `${a.severity} · ` : ""}{a.source} · {a.author} · {fmtDate(a.date)}</p></div></li>))}</ul>)}
+        </Panel>
+        <Panel>
+          <PanelHeader title="Patient information" action={<button onClick={() => setEdit(true)} className="flex items-center gap-1 text-[13px] font-medium text-primary hover:underline"><Pencil className="size-3.5" />Edit</button>} />
+          <dl className="grid grid-cols-[110px_1fr] gap-y-2 p-4 text-[13px]">
+            <dt className="text-muted">Phone</dt><dd>{p.phone}</dd>
+            <dt className="text-muted">Email</dt><dd className="break-all text-primary">{p.email}</dd>
+            <dt className="text-muted">Emergency</dt><dd>{p.emergency || "—"}</dd>
+            <dt className="text-muted">Date of birth</dt><dd>{fmtDate(p.dob, true)} ({ageOf(p.dob)} years)</dd>
+            <dt className="text-muted">Gender</dt><dd>{p.gender || "Not specified"}</dd>
+            <dt className="text-muted">Address</dt><dd>{p.address || "—"}</dd>
+            <dt className="text-muted">Preferred provider</dt><dd>{refs?.providers.find((x) => x.id === p.providerId)?.name ?? "—"}</dd>
+          </dl>
+          <p className="border-t border-line px-4 pt-3 text-[11px] font-semibold uppercase tracking-wide text-muted">Marketing and source</p>
+          <dl className="grid grid-cols-[110px_1fr] gap-y-2 p-4 pt-2 text-[13px]">
+            <dt className="text-muted">Marketing consent</dt><dd><Badge tone={p.marketingConsent ? "mint" : "neutral"}>{p.marketingConsent === undefined ? "Not recorded" : p.marketingConsent ? "Yes" : "No"}</Badge></dd>
+            <dt className="text-muted">Referral source</dt><dd>{p.referral || "—"}</dd>
+          </dl>
+        </Panel>
+        <Panel>
+          <PanelHeader title="Tags" />
+          <div className="flex flex-wrap items-center gap-1.5 p-4">
+            {(p.tags ?? []).length === 0 && <span className="text-[13px] text-muted">No tags</span>}
+            {(p.tags ?? []).map((t) => <Badge key={t} tone={t === "VIP" ? "peach" : "lavender"}>{t}<button aria-label={`Remove ${t}`} className="ml-0.5 opacity-60 hover:opacity-100" onClick={() => tag.run(p.id, { tags: p.tags!.filter((x) => x !== t) })}>×</button></Badge>)}
+            {newTag === null ? <button onClick={() => setNewTag("")} className="rounded-md border border-dashed border-line px-2 py-0.5 text-xs text-muted hover:text-primary">+ Add tag</button>
+              : <form onSubmit={(e) => { e.preventDefault(); if (newTag.trim() && !(p.tags ?? []).includes(newTag.trim())) tag.run(p.id, { tags: [...(p.tags ?? []), newTag.trim()] }); setNewTag(null); }}><Input autoFocus aria-label="New tag" className="h-7 w-28 text-xs" value={newTag} onChange={(e) => setNewTag(e.target.value)} onBlur={() => setNewTag(null)} /></form>}
+          </div>
+        </Panel>
+      </div>
+
+      <div className="min-w-0 space-y-5 @min-[860px]:col-start-1 @min-[860px]:row-span-2 @min-[860px]:row-start-1">
+        {(() => {
+          const tiles = [["Total visits", String(done.length)], ["Treatments", String(treatments)], ...(can("financials") ? [["Total paid", money(fin.paid)], ["Outstanding", money(fin.outstanding)]] : [])];
+          return (
+            <dl className={`grid grid-cols-2 divide-x divide-y divide-line overflow-hidden rounded-xl border border-line bg-white sm:divide-y-0 ${tiles.length === 4 ? "sm:grid-cols-4" : "sm:grid-cols-2"}`}>
+              {tiles.map(([l, n]) => (
+                <div key={l} className="px-4 py-3"><dd className="text-[17px] font-semibold">{n}</dd><dt className="text-xs text-muted">{l}</dt></div>))}
+            </dl>);
+        })()}
+        <Panel>
+          <PanelHeader title="Next appointment" action={next && <button onClick={() => goto("visits")} className="text-[13px] font-medium text-primary hover:underline">View all</button>} />
+          {!next ? <EmptyState title="No upcoming appointment" action={<Button size="sm" onClick={() => ui.newAppt({ patientId: p.id })}>Book appointment</Button>} /> : (
+            <div className="flex flex-wrap items-center gap-4 p-4 text-[13px]">
+              <div className="rounded-lg border border-line px-3 py-2 text-center"><p className="text-[11px] uppercase text-muted">{new Date(next.date + "T12:00").toLocaleDateString("en-US", { month: "short" })}</p><p className="text-xl font-semibold leading-none">{Number(next.date.slice(8))}</p></div>
+              <div className="min-w-0 flex-1"><p className="font-medium">{refs?.services.find((s) => s.id === next.serviceId)?.name}</p><p className="text-muted">{fmtTime(next.time)} · {refs?.providers.find((x) => x.id === next.providerId)?.short} · {refs?.rooms.find((r) => r.id === next.roomId)?.name}</p></div>
+              <StatusBadge status={next.status} /><Button size="sm" variant="secondary" onClick={() => ui.openAppt(next.id)}>Open</Button>
+            </div>)}
+        </Panel>
+        {can("notes") && (extras?.plans ?? []).filter((x) => x.patientId === p.id && x.status === "Active").map((pl) => {
+          const done = pl.steps.filter((x) => x.status === "Completed").length; const nextStep = pl.steps.find((x) => ["Scheduled", "Planned"].includes(x.status));
+          return (
+            <Panel key={pl.id}>
+              <PanelHeader title="Treatment plan" action={<button onClick={() => goto("history")} className="text-[13px] font-medium text-primary hover:underline">Manage</button>} />
+              <div className="space-y-2 p-4 text-[13px]"><p className="font-medium">{pl.name}</p><div className="h-1.5 rounded-full bg-cloud" role="progressbar" aria-valuenow={done} aria-valuemax={pl.steps.length} aria-label="Plan progress"><div className="h-full rounded-full bg-primary" style={{ width: `${(done / Math.max(1, pl.steps.length)) * 100}%` }} /></div>
+                <p className="text-muted">{done} of {pl.steps.length} steps completed{nextStep ? ` · Next: ${nextStep.title}${nextStep.date ? `, ${fmtDate(nextStep.date)}` : ""}` : ""}</p></div>
+            </Panel>);
+        })}
+        <FollowUpsTab p={p} />
         <Panel>
           <PanelHeader title="Recent visits" action={<button onClick={() => goto("visits")} className="text-[13px] font-medium text-primary hover:underline">View all</button>} />
           {myVisits.length === 0 ? <EmptyState title="No visits yet" /> : (
@@ -119,58 +181,9 @@ export function SummaryTab({ p, goto }: { p: Patient; goto: (t: string) => void 
               </div>)}
           </Panel>
         )}
-        {can("notes") && (extras?.plans ?? []).filter((x) => x.patientId === p.id && x.status === "Active").map((pl) => {
-          const done = pl.steps.filter((x) => x.status === "Completed").length; const nextStep = pl.steps.find((x) => ["Scheduled", "Planned"].includes(x.status));
-          return (
-            <Panel key={pl.id}>
-              <PanelHeader title="Treatment plan" action={<button onClick={() => goto("history")} className="text-[13px] font-medium text-primary hover:underline">Manage</button>} />
-              <div className="space-y-2 p-4 text-[13px]"><p className="font-medium">{pl.name}</p><div className="h-1.5 rounded-full bg-cloud" role="progressbar" aria-valuenow={done} aria-valuemax={pl.steps.length} aria-label="Plan progress"><div className="h-full rounded-full bg-primary" style={{ width: `${(done / Math.max(1, pl.steps.length)) * 100}%` }} /></div>
-                <p className="text-muted">{done} of {pl.steps.length} steps completed{nextStep ? ` · Next: ${nextStep.title}${nextStep.date ? `, ${fmtDate(nextStep.date)}` : ""}` : ""}</p></div>
-            </Panel>);
-        })}
-        <Panel>
-          <PanelHeader title="Next appointment" action={next && <button onClick={() => goto("visits")} className="text-[13px] font-medium text-primary hover:underline">View all</button>} />
-          {!next ? <EmptyState title="No upcoming appointment" action={<Button size="sm" onClick={() => ui.newAppt({ patientId: p.id })}>Book appointment</Button>} /> : (
-            <div className="flex flex-wrap items-center gap-4 p-4 text-[13px]">
-              <div className="rounded-lg border border-line px-3 py-2 text-center"><p className="text-[11px] uppercase text-muted">{new Date(next.date + "T12:00").toLocaleDateString("en-US", { month: "short" })}</p><p className="text-xl font-semibold leading-none">{Number(next.date.slice(8))}</p></div>
-              <div className="min-w-0 flex-1"><p className="font-medium">{refs?.services.find((s) => s.id === next.serviceId)?.name}</p><p className="text-muted">{fmtTime(next.time)} · {refs?.providers.find((x) => x.id === next.providerId)?.short} · {refs?.rooms.find((r) => r.id === next.roomId)?.name}</p></div>
-              <StatusBadge status={next.status} /><Button size="sm" variant="secondary" onClick={() => ui.openAppt(next.id)}>Open</Button>
-            </div>)}
-        </Panel>
-        <FollowUpsTab p={p} />
       </div>
 
-      <div className="space-y-5">
-        <Panel>
-          <PanelHeader title="Patient information" action={<button onClick={() => setEdit(true)} className="flex items-center gap-1 text-[13px] font-medium text-primary hover:underline"><Pencil className="size-3.5" />Edit</button>} />
-          <dl className="grid grid-cols-[110px_1fr] gap-y-2 p-4 text-[13px]">
-            <dt className="text-muted">Date of birth</dt><dd>{fmtDate(p.dob, true)} ({ageOf(p.dob)} years)</dd>
-            <dt className="text-muted">Gender</dt><dd>{p.gender || "Not specified"}</dd>
-            <dt className="text-muted">Phone</dt><dd>{p.phone}</dd>
-            <dt className="text-muted">Email</dt><dd className="break-all text-primary">{p.email}</dd>
-            <dt className="text-muted">Address</dt><dd>{p.address || "—"}</dd>
-            <dt className="text-muted">Emergency</dt><dd>{p.emergency || "—"}</dd>
-            <dt className="text-muted">Preferred provider</dt><dd>{refs?.providers.find((x) => x.id === p.providerId)?.name ?? "—"}</dd>
-            <dt className="text-muted">Marketing consent</dt><dd><Badge tone={p.marketingConsent ? "mint" : "neutral"}>{p.marketingConsent === undefined ? "Not recorded" : p.marketingConsent ? "Yes" : "No"}</Badge></dd>
-            <dt className="text-muted">Referral source</dt><dd>{p.referral || "—"}</dd>
-          </dl>
-        </Panel>
-        <Panel>
-          <PanelHeader title="Important information" action={<button onClick={() => setAlertOpen(true)} className="flex items-center gap-1 text-[13px] font-medium text-primary hover:underline"><Plus className="size-3.5" />Add</button>} />
-          {(p.alerts ?? []).length === 0 ? <p className="p-4 text-[13px] text-muted">No alerts recorded. This does not mean the patient has none; confirm at intake.</p> : (
-            <ul className="divide-y divide-line">{p.alerts!.map((a) => (
-              <li key={a.id} className="flex gap-2.5 px-4 py-3 text-[13px]"><AlertTriangle className="mt-0.5 size-4 shrink-0 text-[#9A6200]" aria-hidden />
-                <div><p className="font-medium">{a.type}: {a.description}</p><p className="text-xs text-muted">{a.severity ? `${a.severity} · ` : ""}{a.source} · {a.author} · {fmtDate(a.date)}</p></div></li>))}</ul>)}
-        </Panel>
-        <Panel>
-          <PanelHeader title="Tags" />
-          <div className="flex flex-wrap items-center gap-1.5 p-4">
-            {(p.tags ?? []).length === 0 && <span className="text-[13px] text-muted">No tags</span>}
-            {(p.tags ?? []).map((t) => <Badge key={t} tone={t === "VIP" ? "peach" : "lavender"}>{t}<button aria-label={`Remove ${t}`} className="ml-0.5 opacity-60 hover:opacity-100" onClick={() => tag.run(p.id, { tags: p.tags!.filter((x) => x !== t) })}>×</button></Badge>)}
-            {newTag === null ? <button onClick={() => setNewTag("")} className="rounded-md border border-dashed border-line px-2 py-0.5 text-xs text-muted hover:text-primary">+ Add tag</button>
-              : <form onSubmit={(e) => { e.preventDefault(); if (newTag.trim() && !(p.tags ?? []).includes(newTag.trim())) tag.run(p.id, { tags: [...(p.tags ?? []), newTag.trim()] }); setNewTag(null); }}><Input autoFocus aria-label="New tag" className="h-7 w-28 text-xs" value={newTag} onChange={(e) => setNewTag(e.target.value)} onBlur={() => setNewTag(null)} /></form>}
-          </div>
-        </Panel>
+      <div className="space-y-5 @min-[860px]:col-start-2 @min-[860px]:row-start-2">
         <Panel>
           <PanelHeader title="Communication" action={<Link href="/practice/settings?s=integrations" className="text-[13px] font-medium text-primary hover:underline">Connect</Link>} />
           <ul className="divide-y divide-line">{COMM_LOG.slice(0, 2).map((x) => <li key={x.d + x.t} className="px-4 py-2.5 text-[13px]"><span className="font-medium">{x.t}</span><span className="block text-xs text-muted">{fmtDate(x.d)} · {x.ch}</span></li>)}</ul>
@@ -182,6 +195,7 @@ export function SummaryTab({ p, goto }: { p: Patient; goto: (t: string) => void 
       <EditPatientDialog key={p.id + edit} p={p} open={edit} onClose={() => setEdit(false)} />
       <AlertDialog p={p} open={alertOpen} onClose={() => setAlertOpen(false)} />
       <CompareDialog open={!!cmp} onClose={() => setCmp(null)} a={cmp?.[0]} b={cmp?.[1]} />
+    </div>
     </div>
   );
 }

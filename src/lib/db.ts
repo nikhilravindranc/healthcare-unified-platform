@@ -4,6 +4,8 @@ import type {
 } from "./types";
 import type { AppointmentInput, PatientInput } from "./schemas";
 import { buildDemoSeed } from "./demo-seed";
+import { canReschedule, isLostStatus } from "./appointment-rules";
+import { availabilityIssues } from "./availability-rules";
 
 export const TODAY = "2026-10-07";
 const START_MIN = 10 * 60 + 20;
@@ -88,6 +90,12 @@ patients[0].alerts = [{ id: "al1", type: "Skin", description: "Sensitive skin", 
 patients[0].marketingConsent = true;
 patients[0].referral = "Dr. Emily Carter (referral)";
 patients[4].marketingConsent = false;
+/**
+ * Demo consent decisions. Only these patients have one recorded, and the demo needs a few so that campaign audiences and
+ * their exclusion reasons can be shown. Everyone else, including every enquiry-only person, has no consent recorded.
+ */
+[1, 2, 5, 7, 8, 9].forEach((i) => { patients[i].marketingConsent = true; });
+patients[3].marketingConsent = false;
 patients[6].alerts = [{ id: "al2", type: "Allergy", description: "Reported latex sensitivity", severity: "Moderate", source: "Patient report", date: "2026-09-15", author: "Dr. Patel" }];
 
 const A = (n: number, pid: string, prov: string, svc: string, time: string, status: ApptStatus, room: string, arrivedAt?: number, date = TODAY): Appointment => {
@@ -191,7 +199,10 @@ export const getLocation = (id: string) => locations.find((p) => p.id === id);
 export const pname = (id: string) => { const p = getPatient(id); return p ? `${p.first} ${p.last}` : "Unknown patient"; };
 
 function workingHours() {
-  try { const s = JSON.parse(localStorage.getItem("pms.settings") ?? "{}"); return { open: s.openTime ?? "08:30", close: s.closeTime ?? "17:30" }; } catch { return { open: "08:30", close: "17:30" }; }
+  try {
+    const s = JSON.parse(localStorage.getItem("pms.settings") ?? "{}");
+    return { open: s.openTime ?? "08:30", close: s.closeTime ?? "17:30", buffer: Math.max(0, Number(s.bufferMin) || 0), breakStart: s.breakStart ?? "", breakEnd: s.breakEnd ?? "", closedDates: s.closedDates ?? "" };
+  } catch { return { open: "08:30", close: "17:30", buffer: 0, breakStart: "", breakEnd: "", closedDates: "" }; }
 }
 export function checkConflicts(v: { providerId: string; roomId: string; date: string; time: string; duration: number; ignoreId?: string }) {
   const out: { kind: "provider" | "room" | "hours"; text: string }[] = [];
@@ -201,12 +212,16 @@ export function checkConflicts(v: { providerId: string; roomId: string; date: st
   if (s < toMin(wh.open) || e > toMin(wh.close)) out.push({ kind: "hours", text: `This time is outside working hours (${fmtTime(wh.open)} to ${fmtTime(wh.close)}).` });
   const ph = getProvider(v.providerId)?.hours.match(/(\d+):(\d+) ([AP]M)\s*[–-]\s*(\d+):(\d+) ([AP]M)/);
   if (ph) { const c = (h: string, m: string, ap: string) => ((Number(h) % 12) + (ap === "PM" ? 12 : 0)) * 60 + Number(m); const ps = c(ph[1], ph[2], ph[3]), pe = c(ph[4], ph[5], ph[6]); if (s < ps || e > pe) out.push({ kind: "hours", text: `${getProvider(v.providerId)?.short} is not available at this time (works ${fmtTime(fromMin(ps))} to ${fmtTime(fromMin(pe))}).` }); }
+  const prov = getProvider(v.providerId);
+  out.push(...availabilityIssues({ date: v.date, start: s, duration: v.duration, provider: prov, clinic: wh }));
   for (const a of appointments) {
     if (a.id === v.ignoreId || a.date !== v.date || ["cancelled", "no_show"].includes(a.status)) continue;
     const as = toMin(a.time), ae = as + a.duration;
     if (s < ae && as < e) {
       if (a.providerId === v.providerId) out.push({ kind: "provider", text: `${getProvider(a.providerId)?.short} already has ${pname(a.patientId)} at ${fmtTime(a.time)}.` });
       if (v.roomId && a.roomId === v.roomId) out.push({ kind: "room", text: `${getRoom(a.roomId)?.name} is in use by ${pname(a.patientId)} at ${fmtTime(a.time)}.` });
+    } else if (wh.buffer > 0 && a.providerId === v.providerId && s < ae + wh.buffer && as < e + wh.buffer) {
+      out.push({ kind: "provider", text: `${getProvider(a.providerId)?.short} needs ${wh.buffer} minutes between visits (${pname(a.patientId)} at ${fmtTime(a.time)}).` });
     }
   }
   return out;
@@ -236,13 +251,15 @@ export const api = {
     patients.unshift(p);
     return lag(p, 500);
   },
-  async createAppointment(input: AppointmentInput) {
+  async createAppointment(input: AppointmentInput, opts?: { origin?: "online" }) {
     const a: Appointment = { ...input, id: `A-${appointments.length + 1}`, status: "scheduled", duration: Number(input.duration) };
+    if (opts?.origin) { a.origin = opts.origin; a.events = [{ at: TODAY, text: "Booked online (demo)" }]; }
     appointments.push(a);
     return lag(a, 500);
   },
   async setStatus(id: string, status: ApptStatus) {
     const a = appointments.find((x) => x.id === id)!;
+    if (isLostStatus(status) && a.status !== status) a.events = [...(a.events ?? []), { at: TODAY, text: status === "cancelled" ? "Cancelled" : "Marked as a no-show" }];
     a.status = status;
     if (status === "arrived" || status === "waiting") a.arrivedAt = a.arrivedAt ?? nowMin();
     if (status === "cancelled") notifications.unshift({ id: uid("n"), text: `Appointment cancelled: ${pname(a.patientId)}, ${fmtTime(a.time)}`, time: "Just now", read: false, href: "/calendar" });
@@ -251,6 +268,9 @@ export const api = {
   },
   async reschedule(id: string, date: string, time: string) {
     const a = appointments.find((x) => x.id === id)!;
+    if (!canReschedule(a.status)) throw new Error("This appointment can no longer be rescheduled");
+    const was = isLostStatus(a.status) ? ` (it had been ${a.status === "cancelled" ? "cancelled" : "a no-show"})` : "";
+    a.events = [...(a.events ?? []), { at: TODAY, text: `Rescheduled from ${a.date} ${a.time} to ${date} ${time}${was}` }];
     a.date = date; a.time = time; a.status = "scheduled"; a.arrivedAt = undefined;
     return lag(a, 350);
   },

@@ -209,7 +209,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Menu>
           </div>
         </header>
-        <main id="main" className="mx-auto max-w-[1440px] px-4 pb-24 pt-6 md:px-6 md:pb-10 lg:px-8">{clinicalBlocked ? <Denied what="patient and appointment information" /> : children}</main>
+        <main id="main" className="mx-auto max-w-[1760px] px-4 pb-24 pt-6 md:px-6 md:pb-10 lg:px-8">{clinicalBlocked ? <Denied what="patient and appointment information" /> : children}</main>
       </div>
 
       {/* Mobile bottom navigation */}

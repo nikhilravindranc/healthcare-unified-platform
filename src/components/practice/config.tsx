@@ -157,7 +157,7 @@ export function Integrations() {
           <Button size="sm" variant="secondary" onClick={() => { setApps({ ...apps, [n]: !apps[n] }); toast(apps[n] ? `${n} disconnected` : `${n} marked connected (demo only)`); }}>{apps[n] ? "Disconnect" : "Connect"}</Button></div></Panel>))}</div>
       <Panel className="p-4">
         <p className="font-medium">Optional modules</p>
-        <p className="mb-3 text-[13px] text-muted">Choose which preview modules appear in the menu. Turning one off also blocks its direct link. All three are previews and are not connected to live services.</p>
+        <p className="mb-3 text-[13px] text-muted">Choose which optional modules appear in the menu. Turning one off also blocks its direct link (and, for Online Bookings, the public booking page). These modules run in demo mode and are not connected to live services.</p>
         <div className="space-y-2.5">{([["crm", "CRM"], ["booking", "Online Bookings"], ["campaigns", "Campaigns"]] as const).map(([k, l]) => (
           <Checkbox key={k} label={l} checked={st.modules[k] !== false} onChange={(v) => { if (!can("settings")) return toast.error("Only roles with Settings access can change this"); saveSettings({ modules: { ...st.modules, [k]: v } }); toast(`${l} ${v ? "turned on" : "turned off"}`); }} />))}</div>
       </Panel>

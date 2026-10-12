@@ -1,5 +1,6 @@
 "use client";
 import { Suspense, use, useState } from "react";
+import { isOpenStatus } from "@/lib/appointment-rules";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -42,7 +43,7 @@ function Workspace({ id }: { id: string }) {
   if (isLoading) return <div className="space-y-4"><Skeleton className="h-20 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-72 w-full" /></div>;
   if (!p) return <EmptyState title="Patient not found" text="This patient may have been removed." action={<Link href="/patients"><Button variant="secondary">Back to patients</Button></Link>} />;
 
-  const next = (appts ?? []).filter((a) => a.patientId === id && a.date >= TODAY && !["completed", "cancelled", "no_show"].includes(a.status)).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time)).find((a) => a.date > TODAY || a.status === "scheduled" || a.status === "confirmed") ?? (appts ?? []).find((a) => a.patientId === id && a.date >= TODAY && !["completed", "cancelled", "no_show"].includes(a.status));
+  const next = (appts ?? []).filter((a) => a.patientId === id && a.date >= TODAY && isOpenStatus(a.status)).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time)).find((a) => a.date > TODAY || a.status === "scheduled" || a.status === "confirmed") ?? (appts ?? []).find((a) => a.patientId === id && a.date >= TODAY && isOpenStatus(a.status));
   const startVisit = async () => {
     const ready = (appts ?? []).find((a) => a.patientId === id && a.date === TODAY && ["scheduled", "confirmed", "arrived", "waiting", "in_progress"].includes(a.status));
     if (!ready) return ui.newVisit({ patientId: p.id });

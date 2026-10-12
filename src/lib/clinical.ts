@@ -1,4 +1,5 @@
 import { applyOverrides, diffOverrides, migrateSnapshot, type Overrides } from "./role-perms";
+import { isOpenStatus } from "@/lib/appointment-rules";
 import type {
   PatientDoc, FormResponse, TreatmentPlan, PlanStep,
   AuditEntry, Estimate, FormTemplate, InventoryItem, InventoryMove, Invoice, InvoiceLine, PhotoAsset, Payment, PlotPoint, Visit,
@@ -343,7 +344,7 @@ export function journeyFor(pid: string): JourneyEvent[] {
     if (v.treatments.length || v.plot.length) ev.push({ id: v.id + "t", date: v.date, kind: "treatment", title: v.areas || v.treatments[0]?.area || "Treatment", sub: v.treatments.map((t) => `${t.product} · ${t.units} units`).join(", ") || `${v.plot.length} injection points`, owner: prov, status: v.status, href: `/visits/${v.id}`, photoIds: photos.filter((p) => p.visitId === v.id).map((p) => p.id), plot: v.plot.length, visitId: v.id });
     v.forms.forEach((f) => ev.push({ id: f.id + v.id, date: v.date, kind: "form", title: f.name, sub: `${f.kind} · ${f.signed ? "signed" : "awaiting signature"}`, owner: prov, status: f.signed ? "Signed" : "Pending", href: `/visits/${v.id}` }));
   });
-  appointments.filter((a) => a.patientId === pid && a.date >= TODAY && !["completed", "cancelled", "no_show"].includes(a.status)).forEach((a) => ev.push({ id: a.id, date: a.date, kind: "appointment", title: services.find((s) => s.id === a.serviceId)?.name ?? "Appointment", sub: `${fmtDate(a.date)} · ${a.time}`, owner: getProvider(a.providerId)?.short ?? "", status: "Upcoming", upcoming: true }));
+  appointments.filter((a) => a.patientId === pid && a.date >= TODAY && isOpenStatus(a.status)).forEach((a) => ev.push({ id: a.id, date: a.date, kind: "appointment", title: services.find((s) => s.id === a.serviceId)?.name ?? "Appointment", sub: `${fmtDate(a.date)} · ${a.time}`, owner: getProvider(a.providerId)?.short ?? "", status: "Upcoming", upcoming: true }));
   followUps.filter((f) => f.patientId === pid).forEach((f) => ev.push({ id: f.id, date: f.due, kind: "followup", title: f.type, sub: `Due ${fmtDate(f.due)}`, owner: f.assignee, status: f.status === "Completed" ? "Completed" : f.due < TODAY ? "Overdue" : "Open", href: "/follow-ups", upcoming: f.status === "Open" && f.due >= TODAY }));
   invoices.filter((i) => i.patientId === pid).forEach((i) => ev.push({ id: i.id, date: i.issued, kind: "payment", title: `${i.id} · ${money(docTotal(i))}`, sub: i.lines.map((l) => l.desc).slice(0, 2).join(", "), owner: "Front desk", status: invoiceStatus(i), invoiceId: i.id }));
   photos.filter((p) => p.patientId === pid).forEach((p) => ev.push({ id: p.id, date: p.date, kind: "photo", title: `${p.stage} · ${p.view}`, sub: p.area, owner: p.author, status: p.consent === "Granted" ? "Consent on file" : "Consent pending", photoIds: [p.id] }));

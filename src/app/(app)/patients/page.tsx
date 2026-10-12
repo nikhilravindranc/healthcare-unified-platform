@@ -1,5 +1,6 @@
 "use client";
 import { Suspense, useEffect, useMemo, useState } from "react";
+import { isOpenStatus } from "@/lib/appointment-rules";
 import { useRouter, useSearchParams } from "next/navigation";
 import { MoreHorizontal, Search, SlidersHorizontal, UserPlus } from "lucide-react";
 import { toast } from "sonner";
@@ -33,7 +34,7 @@ function Patients() {
   const tags = [...new Set((patients ?? []).flatMap((p) => p.tags ?? []))].sort();
   const rows = useMemo(() => (patients ?? []).map((p) => {
     const last = (visits ?? []).filter((v) => v.patientId === p.id && v.status === "Completed").sort((a, b) => b.date.localeCompare(a.date))[0];
-    const next = (appts ?? []).filter((a) => a.patientId === p.id && a.date >= TODAY && !["completed", "cancelled", "no_show"].includes(a.status)).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))[0];
+    const next = (appts ?? []).filter((a) => a.patientId === p.id && a.date >= TODAY && isOpenStatus(a.status)).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))[0];
     const fuDue = (fus ?? []).some((x) => x.patientId === p.id && x.status === "Open" && x.due <= TODAY);
     const loc = (appts ?? []).find((a) => a.patientId === p.id)?.locationId;
     return { p, last: last?.date, next, fuDue, loc, bal: patientFinancials(p.id).outstanding };
