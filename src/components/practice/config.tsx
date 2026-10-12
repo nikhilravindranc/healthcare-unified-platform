@@ -6,7 +6,7 @@ import { Alert, Badge, Button, Checkbox, EmptyState, Field, Input, Panel, PanelH
 import { CAPABILITIES, CLINIC_CONFIG, ROLE_PERMS, SERVICE_CAPS, SERVICE_PRICE, money, type Role } from "@/lib/clinical";
 import { api } from "@/lib/db";
 import { useAction, useRefs, useRole } from "@/lib/hooks";
-import { useSettings } from "@/lib/settings";
+import { saveSettings, useSettings } from "@/lib/settings";
 import type { Location, Provider, Room, Service } from "@/lib/types";
 
 export function MultiCheck({ label, options, value, onChange }: { label: string; options: { value: string; label: string }[]; value: string[]; onChange: (v: string[]) => void }) {
@@ -145,6 +145,7 @@ export function UsersSection() {
 }
 
 export function Integrations() {
+  const st = useSettings(); const { can } = useRole();
   const [apps, setApps] = useState(() => { try { return JSON.parse(localStorage.getItem("pms.integrations") ?? "null") ?? { Campaigns: false, Billing: false, Messaging: false }; } catch { return { Campaigns: false, Billing: false, Messaging: false }; } });
   useEffect(() => { try { localStorage.setItem("pms.integrations", JSON.stringify(apps)); } catch {} }, [apps]);
   const info: Record<string, string> = { Campaigns: "Outreach and recall messaging. Recall and Follow-up agents hand patient lists to Campaigns.", Billing: "Organisation-wide invoicing and reconciliation. When connected, it becomes the financial source of truth.", Messaging: "Two-way patient messaging and reminders." };
@@ -154,6 +155,12 @@ export function Integrations() {
       <div className="grid gap-4 sm:grid-cols-2">{Object.keys(info).map((n) => (
         <Panel key={n} className="p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-medium">EVOQ {n}</p><p className="text-[13px] text-muted">{info[n]}</p><div className="mt-2 flex gap-2"><Badge tone={apps[n] ? "peach" : "neutral"}>{apps[n] ? "Marked connected (demo)" : "Not connected"}</Badge></div><p className="mt-1 text-xs text-muted">Last sync: never · Errors: none</p></div>
           <Button size="sm" variant="secondary" onClick={() => { setApps({ ...apps, [n]: !apps[n] }); toast(apps[n] ? `${n} disconnected` : `${n} marked connected (demo only)`); }}>{apps[n] ? "Disconnect" : "Connect"}</Button></div></Panel>))}</div>
+      <Panel className="p-4">
+        <p className="font-medium">Optional modules</p>
+        <p className="mb-3 text-[13px] text-muted">Choose which preview modules appear in the menu. Turning one off also blocks its direct link. All three are previews and are not connected to live services.</p>
+        <div className="space-y-2.5">{([["crm", "CRM"], ["booking", "Online Bookings"], ["campaigns", "Campaigns"]] as const).map(([k, l]) => (
+          <Checkbox key={k} label={l} checked={st.modules[k] !== false} onChange={(v) => { if (!can("settings")) return toast.error("Only roles with Settings access can change this"); saveSettings({ modules: { ...st.modules, [k]: v } }); toast(`${l} ${v ? "turned on" : "turned off"}`); }} />))}</div>
+      </Panel>
     </div>
   );
 }

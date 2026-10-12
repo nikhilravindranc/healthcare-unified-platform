@@ -1,8 +1,8 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Footprints, Search, UserPlus } from "lucide-react";
 import { toast } from "sonner";
-import { Button, EmptyState, Field, Input, Modal, Panel, Select, SkeletonRows, StatusBadge, StatusDot, STATUS, Td, Th } from "@/components/ui";
+import { Button, EmptyState, Field, Input, Modal, Pagination, Panel, Select, SkeletonRows, StatusBadge, StatusDot, STATUS, Td, Th } from "@/components/ui";
 import { ApptActions, PatientLink } from "./bits";
 import { PatientAvatar } from "./photos";
 import { useUI } from "./ui-state";
@@ -12,6 +12,7 @@ import { api, fmtTime, getPatient, pname, TODAY } from "@/lib/db";
 import type { ApptStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
+const PAGE = 8;
 const STRIP: { label: string; statuses: ApptStatus[]; key: string }[] = [
   { key: "scheduled", label: "Scheduled", statuses: ["scheduled", "confirmed"] },
   { key: "arrived", label: "Arrived", statuses: ["arrived"] },
@@ -28,6 +29,7 @@ export function FlowBoard() {
   const now = useNow();
   const [filter, setFilter] = useState<string>("");
   const [q, setQ] = useState("");
+  const [page, setPage] = useState(1);
   const [walk, setWalk] = useState(false);
   const [w, setW] = useState({ patientId: "", providerId: "pat", serviceId: "consult" });
   const [werr, setWerr] = useState("");
@@ -40,6 +42,9 @@ export function FlowBoard() {
     if (strip && !strip.statuses.includes(a.status)) return false;
     return !q || pname(a.patientId).toLowerCase().includes(q.toLowerCase()) || a.patientId.toLowerCase().includes(q.toLowerCase());
   });
+  useEffect(() => setPage(1), [filter, q]);
+  const pages = Math.max(1, Math.ceil(rows.length / PAGE));
+  const slice = rows.slice((Math.min(page, pages) - 1) * PAGE, Math.min(page, pages) * PAGE);
   const services = refs?.services.filter((s) => s.providerIds.includes(w.providerId)) ?? [];
   const hidden = today.filter((a) => a.status === "cancelled" || a.status === "no_show").length;
 
@@ -76,7 +81,7 @@ export function FlowBoard() {
               <table className="hidden w-full md:table">
                 <thead className="border-b border-line bg-cloud/50"><tr><Th>Time</Th><Th>Patient</Th><Th>Provider</Th><Th>Appointment</Th><Th>Wait time</Th><Th>Status</Th><Th className="text-right">Action</Th></tr></thead>
                 <tbody className="divide-y divide-line">
-                  {rows.map((a) => (
+                  {slice.map((a) => (
                     <tr key={a.id} className="hover:bg-cloud/40">
                       <Td className="tabular-nums font-medium">{fmtTime(a.time)}</Td>
                       <Td><button className="text-left" onClick={() => ui.openAppt(a.id)}><span className="flex items-center gap-2.5"><PatientAvatar id={a.patientId} size={32} /><span><span className="block font-medium hover:text-primary">{pname(a.patientId)}</span><span className="text-xs text-muted">{getPatient(a.patientId)?.id}{a.notes === "Walk-in" ? " · Walk-in" : ""}</span></span></span></button></Td>
@@ -90,13 +95,14 @@ export function FlowBoard() {
                 </tbody>
               </table>
               <ul className="divide-y divide-line md:hidden">
-                {rows.map((a) => (
+                {slice.map((a) => (
                   <li key={a.id} className="space-y-2 px-4 py-3">
                     <div className="flex items-start justify-between gap-2"><div><PatientLink id={a.patientId} /><p className="text-xs text-muted">{fmtTime(a.time)} · {refs?.services.find((s) => s.id === a.serviceId)?.name} · {refs?.providers.find((p) => p.id === a.providerId)?.short}</p></div><StatusBadge status={a.status} /></div>
                     <div className="flex items-center justify-between"><span className="text-xs text-muted">{["arrived", "waiting"].includes(a.status) ? `Waiting ${waitLabel(now, a.arrivedAt)}` : STATUS[a.status].label}</span><ApptActions a={a} /></div>
                   </li>
                 ))}
               </ul>
+              {rows.length > PAGE && <Pagination page={Math.min(page, pages)} pages={pages} onPage={setPage} total={rows.length} />}
             </>
           )}
       </Panel>

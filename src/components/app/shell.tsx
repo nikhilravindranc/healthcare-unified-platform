@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   BarChart3, Bell, CalendarDays, ChevronsLeft, ChevronsRight, HelpCircle, LayoutGrid,
   Layers, LogOut, MapPin, MoreHorizontal, Plus, Repeat, Search, Settings, Sparkles, Stethoscope, UserRound, Users,
-  CalendarPlus, UserPlus, FilePlus2, BellPlus, Bot, Package, FileText, ChevronDown, ShieldCheck, type LucideIcon,
+  Inbox, CalendarPlus, UserPlus, FilePlus2, BellPlus, Bot, Package, FileText, ChevronDown, ShieldCheck, type LucideIcon,
 } from "lucide-react";
 import { Avatar, Logo, Menu, MenuContent, MenuItem, MenuLabel, MenuSep, MenuTrigger, Skeleton } from "@/components/ui";
 import { auth, useSession } from "@/lib/auth";
@@ -22,14 +22,18 @@ import { SearchDialog } from "./search";
 import { GuidePanel } from "./guide";
 import { CheckoutDialog } from "./checkout";
 import { toast } from "sonner";
-import { PLATFORM_MODULES } from "@/platform/modules";
+import { Denied } from "@/components/patient/shared";
+import { GROWTH_NAV, moduleEnabled, SWITCHER_MODULES } from "@/platform/modules";
+import { useSettings } from "@/lib/settings";
 
+const CLINICAL = ["/overview", "/calendar", "/patients", "/visits", "/follow-ups", "/agents", "/front-desk"];
 type NavItem = { href: string; label: string; icon: LucideIcon; perm?: PermKey };
 const MAIN: NavItem[] = [
-  { href: "/overview", label: "Today", icon: LayoutGrid },
-  { href: "/calendar", label: "Calendar", icon: CalendarDays },
-  { href: "/patients", label: "Patients", icon: Users },
-  { href: "/follow-ups", label: "Follow-ups", icon: Repeat },
+  { href: "/overview", label: "Today", icon: LayoutGrid, perm: "patients" },
+  { href: "/calendar", label: "Calendar", icon: CalendarDays, perm: "patients" },
+  { href: "/patients", label: "Patients", icon: Users, perm: "patients" },
+  { href: "/enquiries", label: "Enquiries", icon: Inbox, perm: "enquiries" },
+  { href: "/follow-ups", label: "Follow-ups", icon: Repeat, perm: "patients" },
   { href: "/reports", label: "Reports", icon: BarChart3, perm: "reports" },
 ];
 const PRACTICE: NavItem[] = [
@@ -56,7 +60,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [apptId, setApptId] = useState<string | null>(null);
-  const [newAppt, setNewAppt] = useState<{ open: boolean; prefill?: Partial<AppointmentInput> }>({ open: false });
+  const [newAppt, setNewAppt] = useState<{ open: boolean; prefill?: Partial<AppointmentInput>; onCreated?: (a: { id: string; patientId: string }) => void }>({ open: false });
   const [newPatient, setNewPatient] = useState(false);
   const [newFu, setNewFu] = useState<{ open: boolean; prefill?: { patientId?: string; visitId?: string } }>({ open: false });
   const [newVisit, setNewVisit] = useState<{ open: boolean; patientId?: string }>({ open: false });
@@ -66,15 +70,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [checkoutId, setCheckoutId] = useState<string | null>(null);
   const { data: notes } = useNotifications();
   const { role, can } = useRole();
+  const st = useSettings();
   const markRead = useAction(api.markNotifications);
 
   useEffect(() => { if (session === null) router.replace("/sign-in"); }, [session, router]);
+  useEffect(() => { if (session && !can("patients") && path === "/overview") router.replace(can("insights") ? "/marketing-insights" : can("enquiries") ? "/enquiries" : "/practice/team"); }, [session, can, path, router]);
   useEffect(() => { if (new URLSearchParams(window.location.search).get("guide")) { setGuideOpen(true); window.history.replaceState(null, "", window.location.pathname); } }, []);
   useEffect(() => { try { const v = localStorage.getItem("pms.sidebar"); setCollapsed(v ? v === "1" : window.innerWidth < 1024); } catch {} }, []);
 
   const ui = useMemo<UIState>(() => ({
     openAppt: setApptId,
-    newAppt: (prefill) => setNewAppt({ open: true, prefill }),
+    newAppt: (prefill, opts) => setNewAppt({ open: true, prefill, onCreated: opts?.onCreated }),
     newPatient: () => setNewPatient(true),
     newFollowUp: (prefill) => setNewFu({ open: true, prefill }),
     newVisit: (prefill) => setNewVisit({ open: true, patientId: prefill?.patientId }),
@@ -95,7 +101,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="p-8" role="status" aria-label="Loading"><Skeleton className="h-8 w-48" /><Skeleton className="mt-6 h-64 w-full" /></div>
   );
 
-  const modules: NavItem[] = PLATFORM_MODULES.filter((m) => !m.perms || m.perms.some(can)).map((m) => ({ href: m.href, label: m.label, icon: m.icon }));
+  const modules: NavItem[] = GROWTH_NAV.filter((m) => m.perms.some(can) && (!m.module || moduleEnabled(m.module, st.modules))).map((m) => ({ href: m.href, label: m.label, icon: m.icon }));
+  const switcher = SWITCHER_MODULES.filter((m) => m.perms?.some(can) && moduleEnabled(m.id, st.modules));
+  /** Patient-facing pages need the "patients" permission, so roles like Marketing never reach patient records via a URL. */
+  const clinicalBlocked = !can("patients") && CLINICAL.some((c) => path === c || path.startsWith(c + "/"));
   const unread = notes?.filter((n) => !n.read).length ?? 0;
   const isActive = (href: string) => path === href || path.startsWith(href + "/");
   const toggle = () => setCollapsed((c) => { try { localStorage.setItem("pms.sidebar", c ? "0" : "1"); } catch {} return !c; });
@@ -114,13 +123,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {collapsed ? <ChevronsRight className="size-3.5" /> : <ChevronsLeft className="size-3.5" />}
         </button>
         <nav aria-label="Primary" className="scroll-thin flex-1 space-y-0.5 overflow-y-auto p-3">
+          <p className={cn("px-2.5 pb-1 text-[11px] font-medium uppercase tracking-wider text-muted", collapsed ? "sr-only" : "")}>Clinic</p>
           {MAIN.filter((i) => !i.perm || can(i.perm)).map((i) => <NavLink key={i.href} item={i} collapsed={collapsed} active={isActive(i.href)} />)}
           <p className={cn("px-2.5 pb-1 pt-5 text-[11px] font-medium uppercase tracking-wider text-muted", collapsed ? "sr-only" : "")}>Practice</p>
           <div className={cn("my-3 h-px bg-line", collapsed ? "" : "hidden")} />
           {PRACTICE.filter((i) => !i.perm || can(i.perm)).map((i) => <NavLink key={i.href} item={i} collapsed={collapsed} active={isActive(i.href)} />)}
           {modules.length > 0 && (
             <>
-              <p className={cn("px-2.5 pb-1 pt-5 text-[11px] font-medium uppercase tracking-wider text-muted", collapsed ? "sr-only" : "")}>Platform</p>
+              <p className={cn("px-2.5 pb-1 pt-5 text-[11px] font-medium uppercase tracking-wider text-muted", collapsed ? "sr-only" : "")}>Growth &amp; Engagement</p>
               <div className={cn("my-3 h-px bg-line", collapsed ? "" : "hidden")} />
               {modules.map((i) => <NavLink key={i.href} item={i} collapsed={collapsed} active={isActive(i.href)} />)}
             </>
@@ -154,6 +164,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <MenuTrigger asChild><button className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-primary px-3.5 text-sm font-medium text-white hover:bg-primary-hover"><Plus className="size-4" aria-hidden /><span className="hidden sm:inline">New</span><span className="sr-only sm:hidden">New</span></button></MenuTrigger>
               <MenuContent>
                 <MenuItem onSelect={() => ui.newAppt()}><CalendarPlus className="size-4 text-muted" />New appointment</MenuItem>
+                {can("enquiries") && <MenuItem onSelect={() => router.push("/enquiries?new=1")}><Inbox className="size-4 text-muted" />New enquiry</MenuItem>}
                 <MenuItem onSelect={() => ui.newPatient()}><UserPlus className="size-4 text-muted" />New patient</MenuItem>
                 <MenuItem onSelect={() => ui.newVisit()}><FilePlus2 className="size-4 text-muted" />New visit</MenuItem>
                 <MenuItem onSelect={() => ui.newFollowUp()}><BellPlus className="size-4 text-muted" />New follow-up</MenuItem>
@@ -186,6 +197,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <MenuTrigger asChild><button aria-label="Account menu" className="flex items-center gap-2 rounded-lg px-1.5 py-1 hover:bg-cloud"><Avatar name={session.name} size={34} /><span className="hidden text-left leading-tight lg:block"><span className="block text-[13px] font-medium">{session.name.replace("Aarav ", "")}</span><span className="block text-xs text-muted">Main Clinic</span></span><ChevronDown className="hidden size-4 text-muted lg:block" /></button></MenuTrigger>
               <MenuContent>
                 <div className="px-2.5 py-2"><p className="text-sm font-medium">{session.name}</p><p className="text-xs text-muted">{session.email}</p></div>
+                {switcher.length > 0 && (<><MenuSep /><MenuLabel>Applications</MenuLabel>{switcher.map((m) => <MenuItem key={m.id} onSelect={() => router.push(m.href)}><m.icon className="size-4 text-muted" />{m.label}</MenuItem>)}</>)}
                 <MenuSep />
                 <MenuLabel>View as role (demo)</MenuLabel>
                 {(Object.keys(ROLE_PERMS) as Role[]).map((r) => <MenuItem key={r} onSelect={() => { saveRole(r); toast.success(`Now viewing as ${r}`); router.push("/overview"); }}><ShieldCheck className={cn("size-4", r === role ? "text-primary" : "text-muted")} />{r}{r === role && <span className="ml-auto text-xs text-primary">Current</span>}</MenuItem>)}
@@ -196,20 +208,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Menu>
           </div>
         </header>
-        <main id="main" className="mx-auto max-w-[1440px] px-4 pb-24 pt-6 md:px-6 md:pb-10 lg:px-8">{children}</main>
+        <main id="main" className="mx-auto max-w-[1440px] px-4 pb-24 pt-6 md:px-6 md:pb-10 lg:px-8">{clinicalBlocked ? <Denied what="patient and appointment information" /> : children}</main>
       </div>
 
       {/* Mobile bottom navigation */}
-      <nav aria-label="Mobile" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-white pb-[env(safe-area-inset-bottom)] md:hidden">
-        {[{ href: "/overview", label: "Today", icon: LayoutGrid }, { href: "/calendar", label: "Calendar", icon: CalendarDays }, { href: "/patients", label: "Patients", icon: Users }, { href: "/visits", label: "Visits", icon: Stethoscope }].map((i) => (
-          <Link key={i.href} href={i.href} aria-current={isActive(i.href) ? "page" : undefined} className={cn("flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium", isActive(i.href) ? "text-primary" : "text-muted")}>
+      <nav aria-label="Mobile" className="fixed inset-x-0 bottom-0 z-30 flex border-t border-line bg-white pb-[env(safe-area-inset-bottom)] md:hidden">
+        {(can("patients") ? [{ href: "/overview", label: "Today", icon: LayoutGrid }, { href: "/calendar", label: "Calendar", icon: CalendarDays }, { href: "/patients", label: "Patients", icon: Users }, { href: "/visits", label: "Visits", icon: Stethoscope }] : modules.slice(0, 1)).map((i) => (
+          <Link key={i.href} href={i.href} aria-current={isActive(i.href) ? "page" : undefined} className={cn("flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium", isActive(i.href) ? "text-primary" : "text-muted")}>
             <i.icon className="size-5" strokeWidth={1.8} aria-hidden />{i.label}
           </Link>
         ))}
         <Menu>
-          <MenuTrigger asChild><button className="flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium text-muted"><MoreHorizontal className="size-5" aria-hidden />More</button></MenuTrigger>
+          <MenuTrigger asChild><button className="flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium text-muted"><MoreHorizontal className="size-5" aria-hidden />More</button></MenuTrigger>
           <MenuContent side="top" align="end">
-            {[{ href: "/follow-ups", label: "Follow-ups", icon: Repeat }, { href: "/reports", label: "Reports", icon: BarChart3 }, { href: "/agents", label: "EVI agents", icon: Bot }, ...PRACTICE, ...modules, { href: "/practice/settings", label: "Settings", icon: Settings }].map((i) => (
+            {[...(can("patients") ? [{ href: "/follow-ups", label: "Follow-ups", icon: Repeat }, { href: "/agents", label: "EVI agents", icon: Bot }] : []), ...(can("reports") ? [{ href: "/reports", label: "Reports", icon: BarChart3 }] : []), ...(can("enquiries") ? [{ href: "/enquiries", label: "Enquiries", icon: Inbox }] : []), ...PRACTICE, ...modules, { href: "/practice/settings", label: "Settings", icon: Settings }].map((i) => (
               <MenuItem key={i.href} onSelect={() => router.push(i.href)}><i.icon className="size-4 text-muted" />{i.label}</MenuItem>
             ))}
           </MenuContent>
@@ -217,7 +229,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </nav>
 
       <AppointmentPanel id={apptId} onClose={() => setApptId(null)} />
-      <NewAppointmentPanel open={newAppt.open} prefill={newAppt.prefill} onClose={() => setNewAppt({ open: false })} />
+      <NewAppointmentPanel open={newAppt.open} prefill={newAppt.prefill} onCreated={newAppt.onCreated} onClose={() => setNewAppt({ open: false })} />
       <NewPatientPanel open={newPatient} onClose={() => setNewPatient(false)} />
       <NewFollowUpPanel open={newFu.open} prefill={newFu.prefill} onClose={() => setNewFu({ open: false })} />
       <NewVisitDialog open={newVisit.open} patientId={newVisit.patientId} onClose={() => setNewVisit({ open: false })} />

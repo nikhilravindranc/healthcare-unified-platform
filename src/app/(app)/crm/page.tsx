@@ -8,7 +8,7 @@ import { ModuleSkeleton } from "@/platform/module-skeleton";
 export default function CrmPage() {
   const { data } = useQuery({ queryKey: ["contacts"], queryFn: contactsApi.list });
   return (
-    <ModuleSkeleton id="crm" planned={["Lead capture and pipeline stages", "Contact timeline across modules", "Tasks and owners", "Import / dedupe"]}>
+    <ModuleSkeleton id="crm" notice="The CRM is a placeholder. Everyday enquiry handling lives in Enquiries. The contacts below are demo data derived from patients." planned={["Lead capture and pipeline stages", "Contact timeline across modules", "Tasks and owners", "Import / dedupe"]}>
       <Panel>
         <PanelHeader title="Contacts" sub="Shared Contact model, currently derived from Practice patients" />
         {!data ? <SkeletonRows rows={4} /> : (

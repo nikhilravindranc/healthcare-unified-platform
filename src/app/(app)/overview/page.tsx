@@ -16,6 +16,8 @@ import { addDays, fmtDate, fmtLong, fmtTime, getPatient, pname, TODAY, toMin } f
 import { scheduleGaps, waitingNow } from "@/lib/insight";
 import { useSession } from "@/lib/auth";
 import { toast } from "sonner";
+import { EnquiryFollowUpPanel } from "@/modules/enquiries/follow-up-panel";
+import { Inbox } from "lucide-react";
 import type { Appointment } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -180,7 +182,7 @@ function Today() {
           <section aria-label="Quick actions">
             <h2 className="mb-2 text-[15px] font-semibold">Quick actions</h2>
             <div className="flex flex-wrap gap-2">
-              {[{ l: "Add patient", i: UserPlus, run: ui.newPatient }, { l: "Book appointment", i: CalendarPlus, run: () => ui.newAppt() }, { l: "Start visit", i: PlayCircle, run: () => ui.newVisit() }].map((q) => (
+              {[{ l: "Add patient", i: UserPlus, run: ui.newPatient }, { l: "Book appointment", i: CalendarPlus, run: () => ui.newAppt() }, ...(can("enquiries") ? [{ l: "New enquiry", i: Inbox, run: () => router.push("/enquiries?new=1") }] : []), { l: "Start visit", i: PlayCircle, run: () => ui.newVisit() }].map((q) => (
                 <button key={q.l} onClick={q.run} className="flex items-center gap-2.5 rounded-xl border border-line bg-white px-3 py-2 text-left text-[13px] font-medium hover:border-primary/40 hover:bg-active/50">
                   <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-active text-primary"><q.i className="size-4" aria-hidden /></span>{q.l}
                 </button>
@@ -215,6 +217,8 @@ function Today() {
               </ul>
             )}
           </Panel>
+
+          <EnquiryFollowUpPanel />
 
           <Panel>
             <PanelHeader title={`Waiting now (${waiting.length})`} action={<Link href="/overview?view=flow" className="text-[13px] font-medium text-primary hover:underline">View all</Link>} />

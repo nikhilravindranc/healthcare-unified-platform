@@ -61,18 +61,31 @@ export function saveClinic(t: ClinicType) { try { localStorage.setItem("pms.clin
 
 /* ---------- Roles and permissions ---------- */
 export type Role = "Owner" | "Practice manager" | "Provider" | "Front desk" | "Staff" | "Marketing";
-export const PERMS = [["patients", "Patient data"], ["notes", "Clinical notes"], ["photos", "Photos"], ["financials", "Financials"], ["refunds", "Refunds"], ["inventory", "Inventory"], ["reports", "Reports"], ["exports", "Exports"], ["settings", "Settings"], ["ai", "AI actions"], ["crm", "CRM and enquiries"], ["booking", "Manage bookings"], ["booking_view", "View bookings"], ["campaigns", "Manage campaigns"], ["insights", "Marketing insights"]] as const;
+export const PERMS = [["patients", "Patient data"], ["notes", "Clinical notes"], ["photos", "Photos"], ["financials", "Financials"], ["refunds", "Refunds"], ["inventory", "Inventory"], ["reports", "Reports"], ["exports", "Exports"], ["settings", "Settings"], ["ai", "AI actions"], ["crm", "CRM and enquiries"], ["booking", "Manage bookings"], ["booking_view", "View bookings"], ["campaigns", "Manage campaigns"], ["insights", "Marketing insights"], ["enquiries", "Enquiries"]] as const;
 export type PermKey = (typeof PERMS)[number][0];
 export const ROLE_PERMS: Record<Role, PermKey[]> = {
-  Owner: ["patients", "notes", "photos", "financials", "refunds", "inventory", "reports", "exports", "settings", "ai", "crm", "booking", "booking_view", "campaigns", "insights"],
-  "Practice manager": ["patients", "financials", "refunds", "inventory", "reports", "exports", "settings", "ai", "crm", "booking", "booking_view", "campaigns", "insights"],
+  Owner: ["patients", "notes", "photos", "financials", "refunds", "inventory", "reports", "exports", "settings", "ai", "crm", "booking", "booking_view", "campaigns", "insights", "enquiries"],
+  "Practice manager": ["patients", "financials", "refunds", "inventory", "reports", "exports", "settings", "ai", "crm", "booking", "booking_view", "campaigns", "insights", "enquiries"],
   Provider: ["patients", "notes", "photos", "inventory", "reports", "ai", "booking_view"],
-  "Front desk": ["patients", "financials", "crm", "booking", "booking_view"],
+  "Front desk": ["patients", "financials", "crm", "booking", "booking_view", "enquiries"],
   Staff: ["patients", "photos", "inventory"],
   Marketing: ["crm", "campaigns", "insights"],
 };
-try { const saved = JSON.parse(localStorage.getItem("pms.rolePerms") ?? "null"); if (saved) (Object.keys(saved) as Role[]).forEach((r) => { if (r !== "Owner" && ROLE_PERMS[r]) ROLE_PERMS[r] = saved[r]; }); } catch {}
-export function saveRolePerms() { try { localStorage.setItem("pms.rolePerms", JSON.stringify(ROLE_PERMS)); window.dispatchEvent(new Event("pms-clinic")); } catch {} }
+/** Perms added after roles were first saved. Merged once into saved roles so nobody has to reconfigure. */
+const PERMS_V2: PermKey[] = ["crm", "booking", "booking_view", "campaigns", "insights", "enquiries"];
+const DEFAULT_ROLE_PERMS: Record<Role, PermKey[]> = structuredClone(ROLE_PERMS);
+try {
+  const saved = JSON.parse(localStorage.getItem("pms.rolePerms") ?? "null");
+  if (saved) {
+    const migrate = localStorage.getItem("pms.rolePermsV") !== "2";
+    (Object.keys(saved) as Role[]).forEach((r) => {
+      if (r === "Owner" || !ROLE_PERMS[r]) return;
+      ROLE_PERMS[r] = migrate ? [...new Set([...saved[r], ...DEFAULT_ROLE_PERMS[r].filter((p) => PERMS_V2.includes(p))])] : saved[r];
+    });
+    if (migrate) { localStorage.setItem("pms.rolePerms", JSON.stringify(ROLE_PERMS)); localStorage.setItem("pms.rolePermsV", "2"); }
+  }
+} catch {}
+export function saveRolePerms() { try { localStorage.setItem("pms.rolePerms", JSON.stringify(ROLE_PERMS)); localStorage.setItem("pms.rolePermsV", "2"); window.dispatchEvent(new Event("pms-clinic")); } catch {} }
 export function loadRole(): Role { try { return (localStorage.getItem("pms.role") as Role) || "Owner"; } catch { return "Owner"; } }
 export function saveRole(r: Role) { try { localStorage.setItem("pms.role", r); window.dispatchEvent(new Event("pms-clinic")); } catch {} }
 

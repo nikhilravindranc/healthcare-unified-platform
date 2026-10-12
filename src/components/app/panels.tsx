@@ -148,7 +148,7 @@ export function AppointmentPanel({ id, onClose }: { id: string | null; onClose: 
 
 /* ---------- New appointment ---------- */
 const TIMES = Array.from({ length: 36 }, (_, i) => fromMin(8 * 60 + 30 + i * 15));
-export function NewAppointmentPanel({ open, onClose, prefill }: { open: boolean; onClose: () => void; prefill?: Partial<AppointmentInput> }) {
+export function NewAppointmentPanel({ open, onClose, prefill, onCreated }: { open: boolean; onClose: () => void; prefill?: Partial<AppointmentInput>; onCreated?: (a: { id: string; patientId: string }) => void }) {
   const { data: refs } = useRefs();
   const { data: patients } = usePatients();
   const ui = useUI();
@@ -191,7 +191,7 @@ export function NewAppointmentPanel({ open, onClose, prefill }: { open: boolean;
           <Button onClick={() => { onClose(); ui.openAppt(created.id); }}>View appointment</Button></>
       ) : (
         <><Button variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button loading={create.pending} onClick={f.handleSubmit(async (d) => { const a = await create.run(d); setCreated({ id: a.id, patientId: a.patientId }); })}>Schedule appointment</Button></>
+          <Button loading={create.pending} onClick={f.handleSubmit(async (d) => { const a = await create.run(d); setCreated({ id: a.id, patientId: a.patientId }); onCreated?.({ id: a.id, patientId: a.patientId }); })}>Schedule appointment</Button></>
       )}>
       {created ? (
         <div className="anim-fade space-y-3 py-6 text-center">

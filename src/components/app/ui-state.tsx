@@ -5,7 +5,8 @@ import type { AppointmentInput } from "@/lib/schemas";
 export interface EviOpen { prompt?: string; prep?: { patientId: string; apptId?: string } }
 export interface UIState {
   openAppt: (id: string) => void;
-  newAppt: (prefill?: Partial<AppointmentInput>) => void;
+  /** `onCreated` lets a caller (e.g. an enquiry) react once the appointment is saved. */
+  newAppt: (prefill?: Partial<AppointmentInput>, opts?: { onCreated?: (a: { id: string; patientId: string }) => void }) => void;
   newPatient: () => void;
   newFollowUp: (prefill?: { patientId?: string; visitId?: string }) => void;
   newVisit: (prefill?: { patientId?: string }) => void;

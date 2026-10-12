@@ -47,6 +47,34 @@ One person may have several enquiries and appointments, or become a patient late
 
 **Consent**: a record per channel and purpose (`channel`, `purpose`, `status`, `at`, `source`), not a yes/no flag. Any service that sends communications must enforce it; the UI does not.
 
+## Healthcare workspace: navigation and Enquiries (frontend phase)
+**Sidebar** (`src/components/app/shell.tsx`, `src/platform/modules.ts`)
+- *Clinic*: Today, Calendar, Patients, **Enquiries**, Follow-ups, Reports.
+- *Practice*: Team, Services & treatments, Inventory, Locations & rooms, Forms (unchanged).
+- *Growth & Engagement*: Marketing Insights, Campaigns, Online Bookings. Driven by `GROWTH_NAV`.
+- CRM is not in the everyday nav. It is reached from the account menu under "Applications" (`SWITCHER_MODULES`), and its `/crm` route still works.
+- CRM, Booking and Campaigns are optional modules. Each can be switched off in Practice > Integrations (`settings.modules`). A module shows only when it is on and the role has one of its permissions.
+
+**Direct URLs.** `RouteGuard` (`src/platform/route-guard.tsx`) checks permission and module-on for each new page, and `ModuleSkeleton` uses it. The shell also blocks patient-facing routes (`/overview`, `/calendar`, `/patients`, `/visits`, `/follow-ups`, `/agents`) for roles without the `patients` permission, so Marketing cannot reach patient records by typing a URL.
+
+**Enquiries** (`src/modules/enquiries/`)
+- `types.ts`, `schemas.ts` (zod), `data.ts` (48 synthetic enquiries), `api.ts` (the only data-access surface; swap its body for real HTTP calls), `hooks.ts`, plus UI: `enquiry-form.tsx` and `enquiry-detail.tsx`. Routes: `/enquiries`, `/marketing-insights`.
+- Statuses: New, Contacted, Appointment booked, Closed, Not converted.
+- Booking uses the existing New appointment panel (prefilled from the enquiry). A new optional `onCreated` callback on `ui.newAppt` marks the enquiry "Appointment booked".
+- Patient link: a person picks an existing patient, with phone/email matches only suggested. "Create new patient (demo)" reuses the existing mock `createPatient` after confirmation. No Contact migration was done.
+- Permission `enquiries` (Owner, Practice manager, Front desk). Marketing sees Marketing Insights (aggregate only), Campaigns preview and CRM, not individual enquiries or patients.
+- Saved role permissions are kept. A one-time merge (`pms.rolePermsV` = 2) adds the new default permissions to roles saved earlier.
+
+**Marketing Insights** is computed from the same enquiry data and labelled demo. No ad platform or analytics is connected.
+
+## Known limitations
+- Everything is mock data in memory, and permissions and module toggles live in the browser, so none of it is security.
+- The Today dashboard, Reports and Agents do not know about enquiries yet.
+- Enquiry follow-up tasks are separate from patient Follow-ups.
+- Campaigns, Online Bookings and CRM are previews.
+- Marketing still sees practice configuration pages (Team, Services, Locations, Forms) because those had no permission before.
+- Reports keeps its own copy of its line chart. `components/app/charts.tsx` serves the new screens.
+
 ## Phases
 1. (done) Registry, perms, nav entries, skeleton pages, Contact type + adapter.
 2. Agree identity ownership with the backend developer, then implement it consistently when the backend is ready (Contact link, dedupe review, consent enforcement). Deferred: no Contact source-of-truth migration now. Extract `PlatformShell`.
