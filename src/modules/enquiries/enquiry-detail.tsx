@@ -108,7 +108,7 @@ export function EnquiryDetailSheet({ enquiry, needPatient: askPatient, onClose, 
           {e.appointment && (
             <section><H>Appointment</H>
               <div className="rounded-lg border border-line px-3 py-2.5 text-[13px]">
-                <div className="flex items-start justify-between gap-2"><div><p className="font-medium">{refs?.services.find((x) => x.id === e.appointment!.serviceId)?.name ?? "Appointment"} · {fmtDate(e.appointment.date, true)} at {fmtTime(e.appointment.time)}</p><p className="text-xs text-muted">{refs?.providers.find((x) => x.id === e.appointment!.providerId)?.short} · {e.appointment.id}</p></div><StatusBadge status={e.appointment.status} /></div>
+                <div className="flex items-start justify-between gap-2"><div>{readOnly ? <><p className="font-medium">Appointment · {fmtDate(e.appointment.date, true)}</p><p className="text-xs text-muted">Details not shown for your role</p></> : <><p className="font-medium">{refs?.services.find((x) => x.id === e.appointment!.serviceId)?.name ?? "Appointment"} · {fmtDate(e.appointment.date, true)} at {fmtTime(e.appointment.time)}</p><p className="text-xs text-muted">{refs?.providers.find((x) => x.id === e.appointment!.providerId)?.short} · {e.appointment.id}</p></>}</div><StatusBadge status={e.appointment.status} /></div>
                 {!readOnly && <Button size="sm" variant="secondary" className="mt-2" onClick={() => { onClose(); ui.openAppt(e.appointment!.id); }}>View appointment</Button>}
               </div>
               {e.bookingLost && <div className="mt-2"><Alert tone="warn" title="This appointment was not kept">It was {e.appointment.status === "cancelled" ? "cancelled" : "missed"}, so the enquiry is open again. Book a new appointment to continue. The history below is kept.</Alert></div>}
@@ -134,7 +134,7 @@ export function EnquiryDetailSheet({ enquiry, needPatient: askPatient, onClose, 
           </section>
 
           <section><H>History</H>
-            <ol className="space-y-1.5 border-l border-line pl-3.5">{[...e.history].reverse().map((h) => <li key={h.id} className="text-[13px]">{h.text}<span className="block text-xs text-muted">{fmtDate(h.at, true)}</span></li>)}</ol>
+            <ol className="space-y-1.5 border-l border-line pl-3.5">{[...e.history].reverse().map((h) => <li key={h.id} className="text-[13px]">{readOnly ? h.text.replace(/[PA]-E?[0-9]+/g, "a record") : h.text}<span className="block text-xs text-muted">{fmtDate(h.at, true)}</span></li>)}</ol>
           </section>
         </div>)}
       <ConfirmDialog open={confirm === "create"} onOpenChange={(o) => !o && setConfirm(null)} title="Create a patient record?" loading={mkPatient.pending}

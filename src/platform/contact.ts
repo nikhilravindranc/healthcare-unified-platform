@@ -11,7 +11,8 @@ export type ContactSource = "pms" | "crm" | "booking" | "campaign" | "import";
 export type ConsentChannel = "email" | "sms" | "phone";
 export type ConsentPurpose = "marketing" | "reminders" | "recall";
 /** One record per channel and purpose. Sending services must enforce it. */
-export interface Consent { channel: ConsentChannel; purpose: ConsentPurpose; status: "granted" | "withdrawn"; at: string; source: string }
+/** `at` and `source` stay empty when they were not recorded. They must never be filled in to make a record look complete. */
+export interface Consent { channel: ConsentChannel; purpose: ConsentPurpose; status: "granted" | "withdrawn"; at?: string; source?: string }
 export interface Contact {
   id: string;                       // "C-<n>"; stable across modules
   first: string; last: string;

@@ -3,7 +3,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Pencil, Plus } from "lucide-react";
-import { Badge, Button, Checkbox, EmptyState, Field, Input, Modal, Panel, PanelHeader, Select, StatusBadge, Textarea } from "@/components/ui";
+import { Badge, Button, EmptyState, Field, Input, Modal, Panel, PanelHeader, Select, StatusBadge, Textarea } from "@/components/ui";
 import { PhotoThumb, PortraitField } from "@/components/app/photos";
 import { CompareDialog } from "@/components/app/capture";
 import { useUI } from "@/components/app/ui-state";
@@ -16,7 +16,7 @@ import { ageOf } from "./shared";
 
 export function EditPatientDialog({ p, open, onClose }: { p: Patient; open: boolean; onClose: () => void }) {
   const save = useAction(api.updatePatient, "Patient updated");
-  const [v, setV] = useState({ first: p.first, last: p.last, phone: p.phone, email: p.email, address: p.address ?? "", gender: p.gender ?? "", referral: p.referral ?? "", marketingConsent: !!p.marketingConsent, portrait: p.portrait as string | undefined });
+  const [v, setV] = useState({ first: p.first, last: p.last, phone: p.phone, email: p.email, address: p.address ?? "", gender: p.gender ?? "", referral: p.referral ?? "", marketingConsent: p.marketingConsent as boolean | undefined, portrait: p.portrait as string | undefined });
   const [err, setErr] = useState<Record<string, string>>({});
   const submit = async () => {
     const e: Record<string, string> = {};
@@ -37,7 +37,7 @@ export function EditPatientDialog({ p, open, onClose }: { p: Patient; open: bool
         <Field label="Gender"><Select value={v.gender} onChange={(e) => setV({ ...v, gender: e.target.value })}><option value="">Not specified</option><option>Female</option><option>Male</option><option>Non-binary</option></Select></Field>
         <Field label="Referral source"><Select value={v.referral} onChange={(e) => setV({ ...v, referral: e.target.value })}>{["Website enquiry", "Patient referral", "Provider referral", "Social media", "Walk-in", "Other"].map((r) => <option key={r}>{r}</option>)}{v.referral && !["Website enquiry", "Patient referral", "Provider referral", "Social media", "Walk-in", "Other"].includes(v.referral) && <option>{v.referral}</option>}</Select></Field>
         <Field label="Address" className="sm:col-span-2"><Input value={v.address} onChange={(e) => setV({ ...v, address: e.target.value })} /></Field>
-        <div className="sm:col-span-2"><Checkbox checked={v.marketingConsent} onChange={(c) => setV({ ...v, marketingConsent: c })} label="Marketing consent (separate from treatment consent)" /></div>
+        <div className="sm:col-span-2"><Field label="Marketing consent (separate from treatment consent)" hint="Leave as Not recorded unless the patient has made a decision."><Select value={v.marketingConsent === undefined ? "" : v.marketingConsent ? "yes" : "no"} onChange={(e) => setV({ ...v, marketingConsent: e.target.value === "" ? undefined : e.target.value === "yes" })}><option value="">Not recorded</option><option value="yes">Granted</option><option value="no">Not granted</option></Select></Field></div>
       </div>
     </Modal>
   );
@@ -151,7 +151,7 @@ export function SummaryTab({ p, goto }: { p: Patient; goto: (t: string) => void 
             <dt className="text-muted">Address</dt><dd>{p.address || "—"}</dd>
             <dt className="text-muted">Emergency</dt><dd>{p.emergency || "—"}</dd>
             <dt className="text-muted">Preferred provider</dt><dd>{refs?.providers.find((x) => x.id === p.providerId)?.name ?? "—"}</dd>
-            <dt className="text-muted">Marketing consent</dt><dd><Badge tone={p.marketingConsent ? "mint" : "neutral"}>{p.marketingConsent ? "Yes" : "No"}</Badge></dd>
+            <dt className="text-muted">Marketing consent</dt><dd><Badge tone={p.marketingConsent ? "mint" : "neutral"}>{p.marketingConsent === undefined ? "Not recorded" : p.marketingConsent ? "Yes" : "No"}</Badge></dd>
             <dt className="text-muted">Referral source</dt><dd>{p.referral || "—"}</dd>
           </dl>
         </Panel>

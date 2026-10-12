@@ -4,7 +4,7 @@
 | Module | Route | Status | Owns |
 |---|---|---|---|
 | PMS | existing top-level routes (`/overview`, `/patients`, `/practice/*`) | live | patients, visits, billing, inventory |
-| CRM | `/crm` | skeleton | leads, pipeline, tasks, contact timeline |
+| CRM | `/crm` | preview (Contacts v1) | read-only contact directory: patients and enquiry-only people, stage, first-touch source, relationship history |
 | Booking | `/booking` | skeleton | public booking, availability, booking requests |
 | Campaigns | `/campaigns` | skeleton | audiences, email/SMS sends, delivery stats |
 
@@ -23,22 +23,23 @@ Registry: `src/platform/modules.ts`. The shell builds nav from it, filtered by p
   | Marketing | yes | no | manage | yes |
 
   Marketing has no clinical perms. Exporting contact lists stays under `exports` (Owner, Practice manager). Auth is front-end demo state; the backend developer replaces it.
-- **Data**: still the in-memory mock (`src/lib/db.ts`). `src/platform/contacts.ts` derives Contacts from patients. This is interim demo data only and does not mean Patient owns identity long term.
+- **Data**: still the in-memory mock (`src/lib/db.ts`). The sample enquiries and the patients and appointments that belong to the booked ones come from one pure builder, `src/lib/demo-seed.ts`, called once by `db.ts` when it loads. Every route therefore sees the same 25 patients and appointments no matter which page is opened first (a test covers this). `src/modules/enquiries/data.ts` only reads the result.
 
 ## Identity ownership (proposed; to agree with the backend developer)
 | Area | Owns |
 |---|---|
 | PMS | Patient record, clinical profile, appointments, visits. Authoritative for clinical information. |
-| CRM | Enquiry/lead, source, status, assignment, follow-up history. A person can enquire before becoming a patient. |
+| Enquiries | Enquiry capture, status, assignment, follow-up tasks, history, linking to a patient and converting to an appointment. A person can enquire before becoming a patient. |
+| CRM | Broader contact visibility: who a person is across patients and enquiries, how they first found the practice, and their enquiry and appointment history. Read-only today. It owns no records and has no pipeline or tasks of its own. |
 | Contact (shared identity) | A person across products, linked to Patient and CRM records by stable IDs. Records are linked, not duplicated. |
 
 `Patient.contactId` stays a proposed relationship. No migration in the frontend-only phase (`src/platform/contact.ts` is the type sketch).
 
 **Enquiry to patient**
-1. CRM creates an enquiry tied to a prospect Contact.
+1. Enquiries creates an enquiry for a person who is not yet a patient (CRM shows them as an enquiry-only contact).
 2. Front desk follows up and books an appointment.
 3. If the person is new, PMS creates the patient record when appropriate.
-4. The Contact is linked to that patient.
+4. The enquiry is linked to that patient with `Enquiry.patientId`. From then on CRM shows one patient contact that includes the enquiry.
 5. If the person is already a patient, link the existing patient instead of creating a duplicate.
 
 One person may have several enquiries and appointments, or become a patient later; the model must allow all of these.
@@ -70,12 +71,22 @@ One person may have several enquiries and appointments, or become a patient late
 
 **Marketing Insights** is computed by `insights.ts` from the same enquiries. "Appointments from enquiries" counts enquiries whose linked appointment exists and was not cancelled or missed. Those that were are shown as a note and counted as open. Labelled demo. No ad platform or analytics is connected.
 
+## CRM Contacts v1 (`src/modules/crm/`)
+- `contacts.ts` is a pure module (the rules are written at the top of the file and covered by tests). `hooks.ts` joins patients, appointments, visits and the enquiries list (already joined with their appointments). `crm-directory.tsx` and `contact-detail.tsx` are the UI. Nothing here writes data.
+- **Who is a contact.** Every patient. Every enquiry linked to that patient belongs to that contact. Every enquiry with no patient is its own enquiry-only contact. People are never merged by name, phone or email, so one person who enquired twice appears twice. The row `key` is a temporary render key, not a Contact id.
+- **Stage** (derived): enquiry-only New or Contacted is Prospect, Closed or Not converted is Not converted. Patients: a completed appointment or visit within 90 days, or a live appointment ahead, is Active patient. Older completed history with nothing ahead is Lapsed patient. No completed history but a live appointment from today on is Appointment booked. Otherwise Patient, no activity. Cancelled and no-show appointments never count as live.
+- **First-touch source.** The earliest linked enquiry, else the patient's recorded referral, else Unknown. Enquiry sources are used as they are. Referral values map as: Website enquiry becomes Website form, Patient referral, Walk-in and Social media map to themselves, and Provider referral stays as its own source. Anything else (for example free text such as a doctor's name) becomes "Other (as recorded)" and keeps its raw text.
+- **Seed sources.** The original demo patients no longer carry a default referral. Earlier seed data gave every one of them "Website enquiry", which was a generic default rather than recorded history. Now only Sarah Johnson has a referral (a free-text name, shown as "Other (as recorded)"). The other original patients show "Unknown" until an enquiry or a referral is recorded. Patients created from enquiries get their source from the enquiry.
+- **Consent.** The patient record stores `marketingConsent` as yes, no or nothing recorded (undefined). No demo patient gets a default: only Sarah Johnson (granted) and Emily Carter (not granted) have a recorded decision, and everyone else, including every enquiry-only person, is "Not recorded". The patient edit form offers Not recorded, Granted and Not granted, and saving without touching it keeps the value unrecorded. An enquiry is never treated as consent. No consent date or source exists, so the directory shows "Date not recorded" and "Source not recorded". A missing value shows "Not recorded", never "Granted".
+- **Permissions (demo).** `/crm` needs the `crm` permission and the module switch. Phone, email and date of birth need `patients` or `enquiries`, so Marketing sees them hidden in the list, the detail panel and search. Without `patients`, `maskContact` also removes the patient id and status and every appointment detail except its date and status (no service, provider, time or appointment id), and replaces the render key, so those values never reach the page. Links into patient records and the appointment panel need `patients`. Enquiry links open the enquiry in its own read-only panel, which shows only the appointment date and status and replaces record ids in the history text. A requested service on an enquiry stays visible to Marketing, as it already does in the read-only Enquiries views.
+- **Not in CRM:** no pipeline, tasks, follow-up status, merging, editing or record creation. Those stay in Enquiries or Practice Management.
+
 ## Known limitations
 - Everything is mock data in memory, and permissions and module toggles live in the browser, so none of it is security.
 - Reports and Agents do not know about enquiries yet. Today has an "Enquiries to follow up" panel and a "New enquiry" quick action.
 - Enquiry follow-up tasks are separate from patient Follow-ups.
-- Campaigns, Online Bookings and CRM are previews.
-- Real mouse drag-and-drop was exercised up to dragover with the browser tool, but the tool does not deliver the final drop event, so the drop itself is covered only by synthetic events.
+- Campaigns and Online Bookings are previews. CRM is a read-only directory (see "CRM Contacts v1").
+- Drag and drop between Board stages was verified with native browser drag events (Chrome DevTools Protocol): plain moves, reopen, a booking without a linked patient (opens the link prompt), a booking with a linked patient (opens the prefilled appointment panel) and read-only (no draggable cards). The in-app browser tool cannot deliver the final drop event, so that tool alone cannot confirm it. The card menu ("Move to ...") is the keyboard alternative.
 - Live camera capture is not testable here. Photos were tested with the sample image.
 - Reports keeps its own copy of its line chart. `components/app/charts.tsx` serves the new screens.
 
@@ -83,7 +94,7 @@ One person may have several enquiries and appointments, or become a patient late
 `npm test` runs Node's built-in test runner on `tests/*.test.ts` (type stripping needs Node 22.18 or later). They cover the permission-override logic, the appointment join and insights counts, and the Flow layout. UI behavior is checked manually in the browser.
 
 ## Phases
-1. (done) Registry, perms, nav entries, skeleton pages, Contact type + adapter.
+1. (done) Registry, perms, nav entries, skeleton pages, Contact type sketch. CRM Contacts v1 (read-only directory) is done too.
 2. Agree identity ownership with the backend developer, then implement it consistently when the backend is ready (Contact link, dedupe review, consent enforcement). Deferred: no Contact source-of-truth migration now. Extract `PlatformShell`.
 3. Build modules in order Booking (reuses PMS availability), CRM, Campaigns (needs the consent model).
 4. Optionally move PMS under `/pms/*` with redirects once other modules exist.

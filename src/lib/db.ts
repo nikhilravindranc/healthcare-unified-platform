@@ -3,6 +3,7 @@ import type {
   PlotPoint, Provider, Room, Service, Visit,
 } from "./types";
 import type { AppointmentInput, PatientInput } from "./schemas";
+import { buildDemoSeed } from "./demo-seed";
 
 export const TODAY = "2026-10-07";
 const START_MIN = 10 * 60 + 20;
@@ -65,7 +66,7 @@ export const users: AppUser[] = [
 
 const P = (id: number, first: string, last: string, dob: string, phone: string, providerId: string, status: Patient["status"] = "Active", gender = "Female"): Patient => ({
   id: `P-${id}`, first, last, dob, phone, email: `${first}.${last}`.toLowerCase() + "@example.com", providerId, status, gender,
-  address: "Address on file", emergency: "On file", tags: [], marketingConsent: true, referral: "Website enquiry", alerts: [],
+  address: "Address on file", emergency: "On file", tags: [], alerts: [],
 });
 const TAGS: Record<number, string[]> = { 10248: ["VIP", "Regular", "Injectables", "Skin treatments"], 10270: ["Injectables", "Regular"], 10281: ["Injectables"], 10299: ["Injectables", "Skin treatments"], 10251: ["Skin treatments"], 10260: ["Physio programme"], 10256: ["Physio programme"] };
 export const patients: Patient[] = [
@@ -118,6 +119,12 @@ export const appointments: Appointment[] = [
   A(22, "P-10299", "pat", "followup", "09:30", "scheduled", "r1", undefined, "2026-10-08"),
   A(23, "P-10251", "rao", "review", "11:00", "confirmed", "r2", undefined, "2026-10-09"),
 ];
+
+/** Patients and appointments that belong to the sample enquiries are added here, once, so every route sees the same data. */
+const demoSeed = buildDemoSeed({ today: TODAY, addDays, services, rooms });
+patients.push(...demoSeed.patients);
+appointments.push(...demoSeed.appointments);
+export const demoEnquiries = demoSeed.enquiries;
 
 const pt = (id: string, x: number, y: number, product: string, units: number, note = "", area = ""): PlotPoint => ({ id, x, y, product, units, note, area, view: "front" });
 const V = (id: string, patientId: string, providerId: string, type: string, date: string, reason: string, extra: Partial<Visit> = {}): Visit => ({
