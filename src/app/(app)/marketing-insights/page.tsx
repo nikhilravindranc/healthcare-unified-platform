@@ -1,6 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
-import { Alert, Badge, EmptyState, PageHeader, Panel, PanelHeader, Select, Skeleton, Td, Th } from "@/components/ui";
+import { CalendarCheck, Hourglass, Inbox, TrendingUp } from "lucide-react";
+import { Alert, Badge, EmptyState, PageHeader, Panel, PanelHeader, Select, Skeleton, StatGrid, StatTile, Td, Th } from "@/components/ui";
 import { BarList, LineChart } from "@/components/app/charts";
 import { RouteGuard } from "@/platform/route-guard";
 import { TODAY } from "@/lib/db";
@@ -30,10 +31,9 @@ function Insights() {
         : isError ? <EmptyState title="Couldn't load insights" text="Check your connection and try again." />
         : (
         <>
-          <dl className="mb-5 grid grid-cols-2 divide-x divide-y divide-line overflow-hidden rounded-xl border border-line bg-white sm:grid-cols-4 sm:divide-y-0">
-            {[["Total enquiries", d.total], ["Appointments from enquiries", d.booked], ["Enquiry to appointment", `${d.rate}%`], ["Still open", d.open]].map(([l, n]) => (
-              <div key={l} className="px-4 py-3"><dd className="text-xl font-semibold">{n}</dd><dt className="text-xs text-muted">{l}</dt></div>))}
-          </dl>
+          <StatGrid>
+            {([["Total enquiries", d.total, Inbox, "blue"], ["Appointments from enquiries", d.booked, CalendarCheck, "mint"], ["Enquiry to appointment", `${d.rate}%`, TrendingUp, "lavender"], ["Still open", d.open, Hourglass, "peach"]] as const).map(([l, n, icon, tone]) => <StatTile key={l} label={l} value={n} icon={icon} tone={tone} />)}
+          </StatGrid>
           {d.lost > 0 && <p className="mb-4 text-xs text-muted">{d.lost} enquir{d.lost === 1 ? "y has" : "ies have"} a cancelled or missed appointment. {d.lost === 1 ? "It is" : "They are"} counted as open again, not as booked.</p>}
           {d.total === 0 ? <Panel><EmptyState title="No enquiries in this period" text="Choose a longer period." /></Panel> : (
             <div className="grid gap-5 lg:grid-cols-2">

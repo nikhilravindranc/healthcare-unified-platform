@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { Search } from "lucide-react";
-import { Alert, Badge, Button, EmptyState, Input, PageHeader, Pagination, Panel, Select, SkeletonRows, Td, Th } from "@/components/ui";
+import { Search, Users, UserCheck, Inbox } from "lucide-react";
+import { Alert, Badge, Button, EmptyState, Input, PageHeader, Pagination, Panel, Select, SkeletonRows, StatGrid, StatTile, Td, Th } from "@/components/ui";
 import { fmtDate } from "@/lib/db";
 import { CONTACT_STAGES, filterContacts, SOURCE_FILTER_OPTIONS, type CrmContact } from "./contacts";
 import { ContactDetailSheet } from "./contact-detail";
@@ -30,6 +30,11 @@ export function CrmDirectory() {
   return (
     <>
       <PageHeader title="CRM" subtitle="Everyone who has enquired or been seen, with how they found you" actions={<Badge tone="peach">Preview</Badge>} />
+      <StatGrid cols={3}>
+        <StatTile label="Everyone" value={loading ? "–" : contacts.length} hint="Patients and enquiries" icon={Users} tone="blue" />
+        <StatTile label="Patients" value={loading ? "–" : patients} hint="Seen at the practice" icon={UserCheck} tone="mint" />
+        <StatTile label="Enquiry only" value={loading ? "–" : contacts.length - patients} hint="Not patients yet" icon={Inbox} tone="lavender" />
+      </StatGrid>
       <Alert tone="info" title="Built from patients and enquiries">
         {loading ? "Loading..." : `${patients} patients and ${contacts.length - patients} enquiry-only people.`} People are joined only by an explicit enquiry-to-patient link, never by name, phone or email, so one person who enquired twice appears twice. Stage and source are derived, and nothing here changes a record.
       </Alert>

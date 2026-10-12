@@ -1,8 +1,8 @@
 "use client";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search } from "lucide-react";
-import { Badge, Button, EmptyState, Input, PageHeader, Panel, Segmented, SkeletonRows, Td, Th } from "@/components/ui";
+import { Plus, Search, Stethoscope, PlayCircle, CalendarCheck, CheckCircle2 } from "lucide-react";
+import { Badge, Button, EmptyState, Input, PageHeader, Panel, Segmented, SkeletonRows, StatGrid, StatTile, Td, Th } from "@/components/ui";
 import { useUI } from "@/components/app/ui-state";
 import { useRefs, useVisits } from "@/lib/hooks";
 import { fmtDate, pname, TODAY } from "@/lib/db";
@@ -21,6 +21,14 @@ export default function VisitsPage() {
   return (
     <>
       <PageHeader title="Visits" subtitle="Clinical documentation for each patient visit" actions={<Button onClick={() => ui.newVisit()}><Plus className="size-4" />New visit</Button>} />
+      <StatGrid>
+        {[
+          { k: "all" as const, label: "All visits", n: (visits ?? []).length, hint: "On record", icon: Stethoscope, tone: "blue" as const },
+          { k: "progress" as const, label: "In progress", n: (visits ?? []).filter((v) => v.status === "In progress").length, hint: "Still being documented", icon: PlayCircle, tone: "lavender" as const },
+          { k: "today" as const, label: "Today", n: (visits ?? []).filter((v) => v.date === TODAY).length, hint: "Started today", icon: CalendarCheck, tone: "cyan" as const },
+          { k: "completed" as const, label: "Completed", n: (visits ?? []).filter((v) => v.status === "Completed").length, hint: "Signed off", icon: CheckCircle2, tone: "mint" as const },
+        ].map((x) => <StatTile key={x.k} label={x.label} value={isLoading ? "–" : x.n} hint={x.hint} icon={x.icon} tone={x.tone} active={tab === x.k} onClick={() => setTab(x.k)} />)}
+      </StatGrid>
       <Panel>
         <div className="flex flex-wrap items-center gap-3 border-b border-line p-3">
           <Segmented label="Visit filter" value={tab} onChange={setTab} options={[{ value: "all", label: "All" }, { value: "progress", label: "In progress" }, { value: "today", label: "Today" }, { value: "completed", label: "Completed" }]} />

@@ -3,14 +3,16 @@ import { useState } from "react";
 import { isOpenStatus } from "@/lib/appointment-rules";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Pencil, Plus } from "lucide-react";
+import { AlertTriangle, CreditCard, Pencil, Plus, Sparkles, Stethoscope, Wallet } from "lucide-react";
 import { Badge, Button, EmptyState, Field, Input, Modal, Panel, PanelHeader, Select, StatusBadge, Textarea } from "@/components/ui";
 import { PhotoThumb, PortraitField } from "@/components/app/photos";
 import { CompareDialog } from "@/components/app/capture";
 import { useUI } from "@/components/app/ui-state";
 import { useAction, useAppointments, useBilling, useExtras, usePhotos, useRefs, useRole, useVisits } from "@/lib/hooks";
 import { COMM_LOG, FollowUpsTab } from "./records";
+import { PatientNotesPanel } from "./notes-tab";
 import { api, fmtDate, fmtTime, TODAY } from "@/lib/db";
+import { cn } from "@/lib/utils";
 import { money, patientFinancials } from "@/lib/clinical";
 import type { Patient, PhotoAsset } from "@/lib/types";
 import { ageOf } from "./shared";
@@ -93,7 +95,7 @@ export function SummaryTab({ p, goto }: { p: Patient; goto: (t: string) => void 
     <div className="grid items-start gap-5 @min-[860px]:grid-cols-[minmax(0,1fr)_300px] @min-[860px]:grid-rows-[auto_1fr]">
       {/* The layout follows the width of this area, so it also works with the sidebar collapsed. Alerts come first so an allergy is never below the fold, then who the patient is. On wide screens both sit at the top of the right column. */}
       <div className="space-y-5 @min-[860px]:col-start-2 @min-[860px]:row-start-1">
-        <Panel>
+        <Panel className={(p.alerts ?? []).length > 0 ? "border-[#F4DDAA] bg-[#FFFBF2]" : undefined}>
           <PanelHeader title="Important information" action={<button onClick={() => setAlertOpen(true)} className="flex items-center gap-1 text-[13px] font-medium text-primary hover:underline"><Plus className="size-3.5" />Add</button>} />
           {(p.alerts ?? []).length === 0 ? <p className="p-4 text-[13px] text-muted">No alerts recorded. This does not mean the patient has none; confirm at intake.</p> : (
             <ul className="divide-y divide-line">{p.alerts!.map((a) => (
@@ -130,18 +132,30 @@ export function SummaryTab({ p, goto }: { p: Patient; goto: (t: string) => void 
 
       <div className="min-w-0 space-y-5 @min-[860px]:col-start-1 @min-[860px]:row-span-2 @min-[860px]:row-start-1">
         {(() => {
-          const tiles = [["Total visits", String(done.length)], ["Treatments", String(treatments)], ...(can("financials") ? [["Total paid", money(fin.paid)], ["Outstanding", money(fin.outstanding)]] : [])];
+          const owes = fin.outstanding > 0;
+          const tiles = [
+            { l: "Total visits", n: String(done.length), icon: Stethoscope, chip: "bg-active text-primary", bar: "bg-primary" },
+            { l: "Treatments", n: String(treatments), icon: Sparkles, chip: "bg-[#ECECF9] text-[#40428A]", bar: "bg-lavender" },
+            ...(can("financials") ? [
+              { l: "Total paid", n: money(fin.paid), icon: CreditCard, chip: "bg-[#DDF3EF] text-[#1E6B61]", bar: "bg-mint" },
+              { l: "Outstanding", n: money(fin.outstanding), icon: Wallet, chip: owes ? "bg-[#FFF1D6] text-[#7A4B00]" : "bg-cloud text-slate-500", bar: owes ? "bg-peach" : "bg-line" },
+            ] : []),
+          ];
           return (
-            <dl className={`grid grid-cols-2 divide-x divide-y divide-line overflow-hidden rounded-xl border border-line bg-white sm:divide-y-0 ${tiles.length === 4 ? "sm:grid-cols-4" : "sm:grid-cols-2"}`}>
-              {tiles.map(([l, n]) => (
-                <div key={l} className="px-4 py-3"><dd className="text-[17px] font-semibold">{n}</dd><dt className="text-xs text-muted">{l}</dt></div>))}
+            <dl className={`grid grid-cols-2 gap-3 ${tiles.length === 4 ? "sm:grid-cols-4" : "sm:grid-cols-2"}`}>
+              {tiles.map((x) => (
+                <div key={x.l} className="relative overflow-hidden rounded-xl border border-line bg-white p-3.5 shadow-[0_1px_2px_rgba(38,56,75,0.04)]">
+                  <span aria-hidden className={cn("absolute inset-x-0 top-0 h-1", x.bar)} />
+                  <div className="flex items-start justify-between gap-2"><div className="min-w-0"><dt className="text-xs font-medium text-muted">{x.l}</dt><dd className="mt-1 truncate text-[22px] font-semibold leading-none tracking-tight tabular-nums">{x.n}</dd></div>
+                    <span className={cn("grid size-9 shrink-0 place-items-center rounded-lg", x.chip)}><x.icon className="size-[18px]" aria-hidden /></span></div>
+                </div>))}
             </dl>);
         })()}
         <Panel>
           <PanelHeader title="Next appointment" action={next && <button onClick={() => goto("visits")} className="text-[13px] font-medium text-primary hover:underline">View all</button>} />
           {!next ? <EmptyState title="No upcoming appointment" action={<Button size="sm" onClick={() => ui.newAppt({ patientId: p.id })}>Book appointment</Button>} /> : (
             <div className="flex flex-wrap items-center gap-4 p-4 text-[13px]">
-              <div className="rounded-lg border border-line px-3 py-2 text-center"><p className="text-[11px] uppercase text-muted">{new Date(next.date + "T12:00").toLocaleDateString("en-US", { month: "short" })}</p><p className="text-xl font-semibold leading-none">{Number(next.date.slice(8))}</p></div>
+              <div className="rounded-xl bg-active px-3 py-2 text-center text-primary"><p className="text-[11px] uppercase text-muted">{new Date(next.date + "T12:00").toLocaleDateString("en-US", { month: "short" })}</p><p className="text-xl font-semibold leading-none">{Number(next.date.slice(8))}</p></div>
               <div className="min-w-0 flex-1"><p className="font-medium">{refs?.services.find((s) => s.id === next.serviceId)?.name}</p><p className="text-muted">{fmtTime(next.time)} · {refs?.providers.find((x) => x.id === next.providerId)?.short} · {refs?.rooms.find((r) => r.id === next.roomId)?.name}</p></div>
               <StatusBadge status={next.status} /><Button size="sm" variant="secondary" onClick={() => ui.openAppt(next.id)}>Open</Button>
             </div>)}
@@ -156,6 +170,7 @@ export function SummaryTab({ p, goto }: { p: Patient; goto: (t: string) => void 
             </Panel>);
         })}
         <FollowUpsTab p={p} />
+        {can("notes") && <PatientNotesPanel p={p} />}
         <Panel>
           <PanelHeader title="Recent visits" action={<button onClick={() => goto("visits")} className="text-[13px] font-medium text-primary hover:underline">View all</button>} />
           {myVisits.length === 0 ? <EmptyState title="No visits yet" /> : (

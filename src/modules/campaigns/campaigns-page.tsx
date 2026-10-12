@@ -1,7 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
-import { Mail, MessageSquare, Plus } from "lucide-react";
-import { Alert, Badge, Button, EmptyState, PageHeader, Panel, Segmented, SkeletonRows, Td, Th } from "@/components/ui";
+import { Mail, MessageSquare, Plus, Megaphone, Pencil, CalendarClock, PlayCircle } from "lucide-react";
+import { Alert, Badge, Button, EmptyState, PageHeader, Panel, Segmented, SkeletonRows, StatGrid, StatTile, Td, Th } from "@/components/ui";
 import { fmtDate } from "@/lib/db";
 import { useRole } from "@/lib/hooks";
 import { useCrmContacts } from "../crm/hooks";
@@ -33,6 +33,10 @@ export function CampaignsPage() {
   return (
     <>
       <PageHeader title="Campaigns" subtitle="Plan marketing messages and see who is eligible to receive them" actions={<><Badge tone="peach">Demo mode</Badge>{newBtn}</>} />
+      <StatGrid>
+        {([["all", "All campaigns", (data ?? []).length, "Planned so far", Megaphone, "blue"], ["Draft", "Drafts", (data ?? []).filter((c) => c.status === "Draft").length, "Not scheduled", Pencil, "slate"], ["Scheduled", "Scheduled", (data ?? []).filter((c) => c.status === "Scheduled").length, "Demo schedule", CalendarClock, "cyan"], ["Simulated", "Run in demo mode", (data ?? []).filter((c) => c.status === "Simulated").length, "Nothing was delivered", PlayCircle, "peach"]] as const).map(([k, l, n, hint, icon, tone]) => (
+          <StatTile key={k} label={l} value={isLoading ? "–" : n} hint={hint} icon={icon} tone={tone} active={filter === k} onClick={() => setFilter(k as Filter)} />))}
+      </StatGrid>
       <Alert tone="info" title="Nothing is sent from this screen">No email or SMS provider is connected, so campaigns can only be configured, scheduled for the demo and simulated. Marketing goes only to people with explicit consent. Appointment confirmations and reminders belong to Practice Management.</Alert>
       <div className="mb-3 mt-4"><Segmented label="Campaign status" value={filter} onChange={setFilter} options={[{ value: "all", label: "All" }, { value: "Draft", label: "Drafts" }, { value: "Scheduled", label: "Scheduled" }, { value: "Simulated", label: "Run in demo" }]} /></div>
       <Panel>

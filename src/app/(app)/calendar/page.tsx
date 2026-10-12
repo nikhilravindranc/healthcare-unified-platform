@@ -54,7 +54,7 @@ export default function CalendarPage() {
 
   return (
     <>
-      <div className="mb-4 flex flex-wrap items-center gap-3">
+      <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-[#E3E6F5] bg-[linear-gradient(115deg,#F1EEFB_0%,#E6F1FB_38%,#DFF4F0_72%,#FFF3DC_100%)] px-4 py-3 sm:px-5">
         <h1 className="mr-2 text-[26px] font-semibold tracking-tight">Calendar</h1>
         <div className="flex items-center gap-1">
           <Button size="sm" variant="secondary" aria-label="Previous" onClick={() => shift(-1)}><ChevronLeft className="size-4" /></Button>

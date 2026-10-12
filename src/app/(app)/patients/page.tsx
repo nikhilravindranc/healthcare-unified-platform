@@ -2,9 +2,9 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { isOpenStatus } from "@/lib/appointment-rules";
 import { useRouter, useSearchParams } from "next/navigation";
-import { MoreHorizontal, Search, SlidersHorizontal, UserPlus } from "lucide-react";
+import { CalendarCheck, CalendarClock, MoreHorizontal, Search, SlidersHorizontal, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
-import { Badge, Button, EmptyState, Input, Menu, MenuContent, MenuItem, MenuTrigger, PageHeader, Pagination, Panel, Select, SkeletonRows, Td, Th } from "@/components/ui";
+import { Badge, Button, EmptyState, Input, Menu, MenuContent, MenuItem, MenuTrigger, PageHeader, Pagination, Panel, Select, SkeletonRows, StatGrid, StatTile, Td, Th } from "@/components/ui";
 import { PStatus } from "@/components/app/bits";
 import { PatientAvatar } from "@/components/app/photos";
 import { useUI } from "@/components/app/ui-state";
@@ -52,6 +52,17 @@ function Patients() {
     if (f.next === "no" && next) return false;
     return true;
   }), [patients, appts, visits, fus, q, f]);
+  // Whole-practice counts for the tiles. They ignore the search and filters, and a tile applies its filter when clicked.
+  const everyone = patients ?? [];
+  const upcomingIds = new Set((appts ?? []).filter((a) => a.date >= TODAY && isOpenStatus(a.status)).map((a) => a.patientId));
+  const dueIds = new Set((fus ?? []).filter((x) => x.status === "Open" && x.due <= TODAY).map((x) => x.patientId));
+  const clearTiles = { status: "", next: "", fu: "" };
+  const tiles = [
+    { key: "all", label: "All patients", n: everyone.length, hint: "In the practice", icon: Users, tone: "blue" as const, on: !f.status && !f.next && !f.fu, apply: clearTiles },
+    { key: "new", label: "New patients", n: everyone.filter((p) => p.status === "New").length, hint: "Not yet seen", icon: UserPlus, tone: "lavender" as const, on: f.status === "New" && !f.next && !f.fu, apply: { ...clearTiles, status: "New" } },
+    { key: "up", label: "Upcoming appointment", n: everyone.filter((p) => upcomingIds.has(p.id)).length, hint: "Booked ahead", icon: CalendarCheck, tone: "mint" as const, on: f.next === "yes" && !f.status && !f.fu, apply: { ...clearTiles, next: "yes" } },
+    { key: "fu", label: "Follow-up due", n: everyone.filter((p) => dueIds.has(p.id)).length, hint: "Needs a call or visit", icon: CalendarClock, tone: "peach" as const, on: f.fu === "due" && !f.status && !f.next, apply: { ...clearTiles, fu: "due" } },
+  ];
   const pages = Math.ceil(rows.length / PAGE); const slice = rows.slice((page - 1) * PAGE, page * PAGE);
   useEffect(() => setPage(1), [q, f]);
   const active = (pid: string) => (appts ?? []).find((a) => a.patientId === pid && a.date === TODAY && ["scheduled", "confirmed", "arrived", "waiting", "in_progress"].includes(a.status));
@@ -64,9 +75,13 @@ function Patients() {
 
   return (
     <>
-      <PageHeader title="Patients" subtitle={patients ? `${patients.length} patients` : undefined} actions={<Button onClick={ui.newPatient}><UserPlus className="size-4" />New patient</Button>} />
-      <Panel>
-        <div className="flex flex-wrap items-center gap-2 border-b border-line p-3">
+      <PageHeader title="Patients" subtitle={patients ? `${patients.length} patients in the practice` : "Loading patients…"} actions={<Button onClick={ui.newPatient}><UserPlus className="size-4" aria-hidden />New patient</Button>} />
+      <StatGrid>
+        {tiles.map((x) => <StatTile key={x.key} label={x.label} value={isLoading ? "–" : x.n} hint={x.hint} icon={x.icon} tone={x.tone} active={x.on} onClick={() => setF({ ...f, ...x.apply })} />)}
+      </StatGrid>
+
+      <Panel className="overflow-hidden">
+        <div className="flex flex-wrap items-center gap-2 border-b border-line bg-white p-3">
           <div className="relative min-w-56 flex-1 sm:max-w-xs"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden /><Input aria-label="Search patients" className="h-9 pl-9" placeholder="Search by name, ID, phone or email" value={q} onChange={(e) => setQ(e.target.value)} /></div>
           <Select sm className="w-32" aria-label="Status" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })}><option value="">All statuses</option><option>Active</option><option>New</option><option>Inactive</option></Select>
           <Select sm className="w-36" aria-label="Provider" value={f.provider} onChange={(e) => setF({ ...f, provider: e.target.value })}><option value="">All providers</option>{refs?.providers.map((p) => <option key={p.id} value={p.id}>{p.short}</option>)}</Select>
@@ -86,11 +101,11 @@ function Patients() {
             <div className="hidden overflow-x-auto md:block"><table className="w-full min-w-[960px]">
               <thead className="border-b border-line bg-cloud/50"><tr><Th>Patient</Th><Th>Contact</Th><Th>Preferred provider</Th><Th>Last visit</Th><Th>Next appointment</Th>{can("financials") && <Th>Balance</Th>}<Th>Status</Th><Th /></tr></thead>
               <tbody className="divide-y divide-line">{slice.map(({ p, last, next, bal }) => (
-                <tr key={p.id} tabIndex={0} onClick={() => router.push(`/patients/${p.id}`)} onKeyDown={(e) => e.key === "Enter" && router.push(`/patients/${p.id}`)} className="cursor-pointer hover:bg-cloud/50 focus-visible:bg-cloud/50">
-                  <Td><div className="flex items-center gap-3"><PatientAvatar id={p.id} name={`${p.first} ${p.last}`} size={38} /><div><p className="font-medium">{p.first} {p.last}</p><p className="text-xs text-muted">{p.id}</p>{(p.tags ?? []).length > 0 && <div className="mt-0.5 flex flex-wrap gap-1">{p.tags!.slice(0, 2).map((t) => <Badge key={t} tone={t === "VIP" ? "peach" : "lavender"} className="py-0 text-[11px]">{t}</Badge>)}</div>}</div></div></Td>
+                <tr key={p.id} tabIndex={0} onClick={() => router.push(`/patients/${p.id}`)} onKeyDown={(e) => e.key === "Enter" && router.push(`/patients/${p.id}`)} className="cursor-pointer transition-colors hover:bg-active/50 focus-visible:bg-active/50">
+                  <Td><div className="flex items-center gap-3"><PatientAvatar id={p.id} name={`${p.first} ${p.last}`} size={40} /><div><p className="font-semibold">{p.first} {p.last}</p><p className="text-xs text-muted">{p.id}</p>{(p.tags ?? []).length > 0 && <div className="mt-0.5 flex flex-wrap gap-1">{p.tags!.slice(0, 2).map((t) => <Badge key={t} tone={t === "VIP" ? "peach" : "lavender"} className="py-0 text-[11px]">{t}</Badge>)}</div>}</div></div></Td>
                   <Td><p>{p.phone}</p><p className="text-xs text-muted">{p.email}</p></Td><Td>{refs?.providers.find((x) => x.id === p.providerId)?.short ?? "—"}</Td>
-                  <Td>{last ? fmtDate(last) : <span className="text-muted">—</span>}</Td><Td>{next ? `${next.date === TODAY ? "Today" : fmtDate(next.date)} · ${fmtTime(next.time)}` : <span className="text-muted">None</span>}</Td>
-                  {can("financials") && <Td className={bal > 0 ? "font-medium text-[#9A6200]" : "text-muted"}>{bal > 0 ? money(bal) : "—"}</Td>}
+                  <Td>{last ? fmtDate(last) : <span className="text-muted">—</span>}</Td><Td>{next ? <Badge tone={next.date === TODAY ? "mint" : "blue"}><CalendarCheck className="size-3" aria-hidden />{next.date === TODAY ? "Today" : fmtDate(next.date)} · {fmtTime(next.time)}</Badge> : <span className="text-muted">None</span>}</Td>
+                  {can("financials") && <Td>{bal > 0 ? <Badge tone="peach">{money(bal)} due</Badge> : <span className="text-muted">—</span>}</Td>}
                   <Td><PStatus s={p.status} /></Td><Td className="text-right">{actions(p)}</Td></tr>))}</tbody></table></div>
             <ul className="divide-y divide-line md:hidden">{slice.map(({ p, last, next }) => (
               <li key={p.id} className="flex items-center gap-1 pr-2"><button onClick={() => router.push(`/patients/${p.id}`)} className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 text-left"><PatientAvatar id={p.id} name={`${p.first} ${p.last}`} size={40} />

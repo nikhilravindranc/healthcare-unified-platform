@@ -1,9 +1,9 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Download } from "lucide-react";
+import { Download, CalendarCheck, CheckCircle2, CalendarX, UserX, Repeat } from "lucide-react";
 import { toast } from "sonner";
-import { Badge, Button, PageHeader, Panel, PanelHeader, Select, Skeleton, Td, Th } from "@/components/ui";
+import { Badge, Button, PageHeader, Panel, PanelHeader, Select, Skeleton, StatGrid, StatTile, Td, Th } from "@/components/ui";
 import { AgentHint } from "@/components/app/bits";
 import { Denied } from "@/components/patient/shared";
 import { useBilling, useInventory, useRefs, useRole } from "@/lib/hooks";
@@ -69,9 +69,9 @@ export default function ReportsPage() {
 
       {busy ? <div className="grid gap-4"><Skeleton className="h-24" /><Skeleton className="h-72" /></div> : (
         <>
-          <dl className="mb-5 grid grid-cols-2 divide-x divide-y divide-line overflow-hidden rounded-xl border border-line bg-white sm:grid-cols-5 sm:divide-y-0">
-            {[["Appointments", d.total], ["Completed", d.done], ["Cancellations", d.ca], ["No-shows", d.ns], ["Follow-up completion", `${d.fu}%`]].map(([l, n]) => <div key={l} className="px-4 py-3"><dd className="text-xl font-semibold">{typeof n === "number" ? n.toLocaleString() : n}</dd><dt className="text-xs text-muted">{l}</dt></div>)}
-          </dl>
+          <StatGrid cols={5}>
+            {([["Appointments", d.total, CalendarCheck, "blue"], ["Completed", d.done, CheckCircle2, "mint"], ["Cancellations", d.ca, CalendarX, "peach"], ["No-shows", d.ns, UserX, "red"], ["Follow-up completion", `${d.fu}%`, Repeat, "lavender"]] as const).map(([l, n, icon, tone]) => <StatTile key={l} label={l} value={typeof n === "number" ? n.toLocaleString() : n} icon={icon} tone={tone} />)}
+          </StatGrid>
           <div className="grid gap-5 lg:grid-cols-2">
             <Panel><PanelHeader title="Appointment trend" sub="Daily appointments and completed" />
               <div className="p-4"><LineChart label="Appointment trend" days={d.days.map((x) => x.date)} series={[{ name: "Appointments", color: "#2867B2", v: d.days.map((x) => x.total) }, { name: "Completed", color: "#7ACFC5", v: d.days.map((x) => x.done) }]} /></div></Panel>

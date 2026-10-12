@@ -1,9 +1,9 @@
 "use client";
 import Link from "next/link";
-import { ExternalLink } from "lucide-react";
-import { Alert, Badge, Button, Checkbox, EmptyState, Field, Input, PageHeader, Panel, PanelHeader, StatusBadge, Td, Th } from "@/components/ui";
+import { CalendarCheck, CalendarClock, CalendarX, ExternalLink } from "lucide-react";
+import { Alert, Badge, Button, Checkbox, EmptyState, Field, Input, PageHeader, Panel, PanelHeader, StatGrid, StatTile, StatusBadge, Td, Th } from "@/components/ui";
 import { useUI } from "@/components/app/ui-state";
-import { fmtDate, fmtTime } from "@/lib/db";
+import { fmtDate, fmtTime, TODAY } from "@/lib/db";
 import { useAppointments, usePatients, useRefs, useRole } from "@/lib/hooks";
 import { saveSettings, useSettings } from "@/lib/settings";
 import { providersForService } from "./availability";
@@ -32,7 +32,12 @@ export function BookingAdmin() {
     <>
       <PageHeader title="Online Bookings" subtitle="Let people book themselves, and see what they booked" actions={<><Badge tone="peach">Demo mode</Badge><Link href="/book"><Button variant="secondary"><ExternalLink className="size-4" />Open the booking page</Button></Link></>} />
       <Alert tone="info" title="A demo of the public booking journey">The page offers times from the same rules as the appointment form, applied to demo data, and sends no confirmations. A booking made there is an ordinary appointment, so it also appears in Calendar and Patients. Open it in this tab so this demo session keeps its data.</Alert>
-      <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="mt-5"><StatGrid cols={3}>
+        <StatTile label="Online bookings" value={online.length} hint="Made on the public page" icon={CalendarCheck} tone="blue" />
+        <StatTile label="Coming up" value={online.filter((a) => a.date >= TODAY && a.status !== "cancelled" && a.status !== "no_show").length} hint="Still to happen" icon={CalendarClock} tone="mint" />
+        <StatTile label="Cancelled" value={online.filter((a) => a.status === "cancelled").length} hint="By the patient or practice" icon={CalendarX} tone="peach" />
+      </StatGrid></div>
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="min-w-0 space-y-5">
           <Panel>
             <PanelHeader title="Online bookings" sub="Appointments booked on the public page" />
