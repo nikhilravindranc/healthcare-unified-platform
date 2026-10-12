@@ -41,18 +41,16 @@ export function ManageBooking({ initialReference = "" }: { initialReference?: st
   const cancel = async () => { setBusy(true); try { await refresh(await bookingApi.cancel(booking!.reference, email), "Your booking is cancelled. Demo only: no email or text was sent."); } catch { setMsg({ tone: "error", text: "This booking cannot be changed." }); } finally { setBusy(false); setConfirm(false); } };
   const move = async () => { setBusy(true); try { await refresh(await bookingApi.reschedule(booking!.reference, email, date, time), "Your booking has been moved. Demo only: no email or text was sent."); } catch (e) { setMsg({ tone: "error", text: e instanceof SlotTakenError ? e.message : "This booking cannot be changed." }); } finally { setBusy(false); } };
 
-  if (!refs) return <PublicShell><Skeleton className="h-48 w-full" /></PublicShell>;
+  if (!refs) return <PublicShell narrow title="Manage your booking" subtitle="Enter the reference you were given and the email you booked with."><Skeleton className="h-48 w-full" /></PublicShell>;
   return (
-    <PublicShell>
-      <h1 className="text-2xl font-semibold tracking-tight">Manage your booking</h1>
-      <p className="mb-4 mt-1 text-sm text-muted">Enter the reference you were given and the email you booked with.</p>
+    <PublicShell narrow title="Manage your booking" subtitle="Enter the reference you were given and the email you booked with.">
       {!booking ? (
-        <form noValidate className="space-y-4" onSubmit={(e) => { e.preventDefault(); look(); }}>
+        <Panel className="p-5 sm:p-6"><form noValidate className="space-y-4" onSubmit={(e) => { e.preventDefault(); look(); }}>
           <Field label="Booking reference" required error={errors.reference?.message}><Input autoComplete="off" {...f.register("reference")} /></Field>
           <Field label="Email" required error={errors.email?.message}><Input type="email" autoComplete="email" {...f.register("email")} /></Field>
           {missing && <Alert tone="warn" title="We could not find that booking">Check the reference and email. Only bookings made on this page can be managed here.</Alert>}
           <div className="flex justify-between"><Link href="/book"><Button type="button" variant="ghost">Book an appointment</Button></Link><Button type="submit" loading={busy}>Find booking</Button></div>
-        </form>
+        </form></Panel>
       ) : (
         <Panel className="space-y-4 p-5">
           {msg && <Alert tone={msg.tone}>{msg.text}</Alert>}

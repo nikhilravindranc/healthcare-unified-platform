@@ -19,6 +19,8 @@ import { cn } from "@/lib/utils";
 const FIELDS = ["reason", "notes", "technique", "areas", "treatmentNote", "treatments", "plot", "followUpInstructions", "followUpRecommended", "forms", "measures", "exercises"] as const;
 const snap = (v: Visit) => JSON.stringify(FIELDS.map((k) => v[k] ?? null));
 
+const TAB_ALIAS: Record<string, string> = { treatment: "notes", measures: "notes", products: "plotting", photos: "consent", plan: "followup" };
+
 export default function VisitPage({ params }: { params: Promise<{ id: string }> }) {
   return <Suspense><Workspace id={use(params).id} /></Suspense>;
 }
@@ -65,20 +67,30 @@ function Workspace({ id }: { id: string }) {
   const physio = clinic === "Physiotherapy";
 
   const plotCount = draft?.plot.length ?? 0;
+  const hasPlot = caps.plotting && config.tabs.plotting && can("notes");
+  const hasProducts = caps.products && config.tabs.products;
+  const hasPhotos = config.tabs.photos && (caps.beforeAfter || caps.guided) && can("photos");
+  const hasTreatment = !physio;
+  const hasMeasures = config.tabs.measurements;
+  const hasPlan = config.tabs.plan;
+  /** Six tabs at most, in the order a visit unfolds: before (consent and photos), during (plotting and products), after (notes, follow-up, billing). */
   const tabs = useMemo(() => {
-    const t: [string, string][] = [["summary", "Summary"]];
-    if (caps.plotting && config.tabs.plotting && can("notes")) t.push(["plotting", `Injection plotting${plotCount ? ` (${plotCount})` : ""}`]);
-    t.push(["notes", config.notesLabel === "Notes" ? "Notes" : config.notesLabel]);
-    if (!physio) t.push(["treatment", config.treatmentLabel]);
-    if (caps.products && config.tabs.products) t.push(["products", "Products"]);
-    if (config.tabs.photos && (caps.beforeAfter || caps.guided) && can("photos")) t.push(["photos", "Photos"]);
-    t.push(["consent", "Forms and consent"], ["followup", "Follow-up"]);
-    if (config.tabs.plan) t.push(["plan", "Treatment plan"]);
-    if (config.tabs.measurements) t.push(["measures", "Measures and exercises"]);
+    const t: [string, string][] = [["summary", "Summary"], ["consent", hasPhotos ? "Consent & photos" : "Forms & consent"]];
+    if (hasPlot || hasProducts) t.push(["plotting", hasPlot && hasProducts ? `Plotting & products${plotCount ? ` (${plotCount})` : ""}` : hasPlot ? `Injection plotting${plotCount ? ` (${plotCount})` : ""}` : "Products"]);
+    t.push(["notes", hasTreatment ? `${config.notesLabel === "Notes" ? "Notes" : config.notesLabel} & ${config.treatmentLabel.toLowerCase()}` : hasMeasures ? `${config.notesLabel} & measures` : config.notesLabel]);
+    t.push(["followup", hasPlan ? "Follow-up & plan" : "Follow-up"]);
     if (can("financials")) t.push(["billing", "Billing"]);
     return t;
-  }, [caps, config, can, physio, plotCount]);
-  const tab = tabs.find(([k]) => k === sp.get("tab"))?.[0] ?? "summary";
+  }, [config, can, plotCount, hasPlot, hasProducts, hasPhotos, hasTreatment, hasMeasures, hasPlan]);
+  /** Older links to the tabs that were merged still land in the right place. */
+  const tab = tabs.find(([k]) => k === (TAB_ALIAS[sp.get("tab") ?? ""] ?? sp.get("tab")))?.[0] ?? "summary";
+  const tlRef = useRef<HTMLDivElement>(null); const [moreTabs, setMoreTabs] = useState(false);
+  useEffect(() => {
+    const el = tlRef.current; if (!el) return;
+    const f = () => setMoreTabs(el.scrollWidth - el.clientWidth - el.scrollLeft > 4);
+    f(); el.addEventListener("scroll", f); window.addEventListener("resize", f);
+    return () => { el.removeEventListener("scroll", f); window.removeEventListener("resize", f); };
+  }, [tabs.length, !!draft]); // eslint-disable-line react-hooks/exhaustive-deps
   const go = (k: string) => router.replace(`/visits/${id}?tab=${k}`, { scroll: false });
 
   if (isLoading || (v && !draft)) return <div className="space-y-4"><Skeleton className="h-16 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-96 w-full" /></div>;
@@ -92,7 +104,7 @@ function Workspace({ id }: { id: string }) {
   const reqs = [
     can("notes") && { label: "Clinical notes written", ok: hasNotes, tab: "notes" },
     caps.consent && { label: "Consent signed", ok: draft.forms.some((f) => f.kind === "Consent" && f.signed), tab: "consent" },
-    caps.beforeAfter && config.tabs.photos && can("photos") && { label: "Before photo (front) captured", ok: mine.some((x) => x.stage === "Before" && x.view === "Front"), tab: "photos" },
+    caps.beforeAfter && config.tabs.photos && can("photos") && { label: "Before photo (front) captured", ok: mine.some((x) => x.stage === "Before" && x.view === "Front"), tab: "consent" },
     caps.plotting && config.tabs.plotting && { label: "At least one injection point documented", ok: draft.plot.length > 0, tab: "plotting" },
     caps.products && draft.plot.length > 0 && { label: "Lot recorded for every product", ok: draft.plot.every((x) => !!x.lot), tab: "plotting" },
   ].filter(Boolean) as { label: string; ok: boolean; tab: string }[];
@@ -116,16 +128,11 @@ function Workspace({ id }: { id: string }) {
   const body = () => {
     const denied = (perm: Parameters<typeof can>[0], what: string, el: React.ReactNode) => (can(perm) ? el : <Denied what={what} />);
     switch (tab) {
-      case "summary": return <SummaryPanel v={draft} p={p} patch={patch} locked={locked} status={reqs} onPlot={caps.plotting && config.tabs.plotting && can("notes") ? () => go("plotting") : undefined} />;
-      case "notes": return denied("notes", "clinical notes", <NotesTab v={draft} patch={patch} locked={locked} prior={prior} clinic={clinic} saved={savedAt ?? (v.noteMeta ? `${v.noteMeta.savedAt} by ${v.noteMeta.by}` : undefined)} />);
-      case "treatment": return denied("notes", "treatment records", <TreatmentTab v={draft} patch={patch} locked={locked} label={config.treatmentLabel} />);
-      case "plotting": return denied("notes", "injection plots", <PlottingTab v={v.status === "Completed" ? v : draft} plot={draft.plot} setPlot={(pl) => patch({ plot: pl })} locked={locked} visits={visits ?? []} />);
-      case "products": return <ProductsTab v={draft} />;
-      case "photos": return denied("photos", "photos", <VisitPhotos v={draft} p={p} locked={locked} required={requiredViews} />);
-      case "consent": return <ConsentTab v={draft} p={p} locked={locked} patch={patch} />;
-      case "followup": return <FollowUpPanel v={draft} p={p} patch={patch} locked={locked} />;
-      case "plan": return <PlanTab v={draft} p={p} />;
-      case "measures": return <MeasuresTab v={draft} patch={patch} locked={locked} />;
+      case "summary": return <SummaryPanel v={draft} p={p} patch={patch} locked={locked} status={reqs} onPlot={hasPlot ? () => go("plotting") : undefined} />;
+      case "consent": return <div className="space-y-5"><ConsentTab v={draft} p={p} locked={locked} patch={patch} />{hasPhotos && denied("photos", "photos", <VisitPhotos v={draft} p={p} locked={locked} required={requiredViews} />)}</div>;
+      case "plotting": return <div className="space-y-5">{hasPlot && denied("notes", "injection plots", <PlottingTab v={v.status === "Completed" ? v : draft} plot={draft.plot} setPlot={(pl) => patch({ plot: pl })} locked={locked} visits={visits ?? []} />)}{hasProducts && <ProductsTab v={draft} />}</div>;
+      case "notes": return denied("notes", "clinical notes", <div className="space-y-5"><NotesTab v={draft} patch={patch} locked={locked} prior={prior} clinic={clinic} saved={savedAt ?? (v.noteMeta ? `${v.noteMeta.savedAt} by ${v.noteMeta.by}` : undefined)} />{hasTreatment && <TreatmentTab v={draft} patch={patch} locked={locked} label={config.treatmentLabel} />}{hasMeasures && <MeasuresTab v={draft} patch={patch} locked={locked} />}</div>);
+      case "followup": return <div className="space-y-5"><FollowUpPanel v={draft} p={p} patch={patch} locked={locked} />{hasPlan && <PlanTab v={draft} p={p} />}</div>;
       case "billing": return denied("financials", "billing", <BillingTab v={draft} p={p} serviceId={serviceId} />);
       default: return null;
     }
@@ -156,8 +163,11 @@ function Workspace({ id }: { id: string }) {
       </header>
       {!locked && <BeforeYouStart v={draft} p={p} />}
 
-      <div role="tablist" aria-label="Visit sections" className="mb-5 flex gap-1 overflow-x-auto border-b border-line scroll-thin">
-        {tabs.map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} onClick={() => go(k)} className={cn("relative whitespace-nowrap px-3 py-2.5 text-sm font-medium after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded", tab === k ? "text-primary after:bg-primary" : "text-muted hover:text-ink")}>{l}</button>)}
+      <div className="relative mb-5">
+        <div ref={tlRef} role="tablist" aria-label="Visit sections" className="flex gap-1 overflow-x-auto border-b border-line scroll-thin">
+          {tabs.map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} onClick={() => go(k)} className={cn("relative whitespace-nowrap px-3 py-2.5 text-sm font-medium after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded", tab === k ? "text-primary after:bg-primary" : "text-muted hover:text-ink")}>{l}</button>)}
+        </div>
+        {moreTabs && <span aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-white to-transparent" />}
       </div>
       <div role="tabpanel">{body()}</div>
 

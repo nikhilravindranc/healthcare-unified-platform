@@ -1,7 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Camera, Check, ChevronDown, Circle, FileSignature, Plus, Sparkles, Trash2, X } from "lucide-react";
+import { Camera, Check, ChevronDown, Circle, FileSignature, Plus, Sparkles, Trash2, X, Minus } from "lucide-react";
 import { Alert, Badge, Button, EmptyState, Field, Input, Modal, Panel, PanelHeader, Select, Textarea } from "@/components/ui";
 import { PhotoThumb } from "@/components/app/photos";
 import { PlotCanvas } from "@/components/app/plot";
@@ -50,16 +50,25 @@ export function SummaryPanel({ v, p, patch, locked, status, onPlot }: { v: Visit
   return (
     <div className="grid gap-5 lg:grid-cols-2">
       {onPlot && (
-        <button onClick={onPlot} className="group flex items-center gap-4 rounded-xl border border-primary/30 bg-active/50 p-4 text-left hover:border-primary hover:bg-active lg:col-span-2" aria-label="Open injection plotting">
-          <span className="w-16 shrink-0 overflow-hidden rounded-lg border border-line bg-white"><PlotCanvas patientId={v.patientId} view="full" points={v.plot} readOnly labels={false} /></span>
-          <span className="flex-1"><span className="block text-[15px] font-semibold">Injection plotting</span><span className="block text-[13px] text-muted">{v.plot.length ? `${v.plot.length} points documented${locked ? "" : ". Continue plotting."}` : locked ? "No points were documented." : "Document where treatment is given on the patient's photo."}</span></span>
-          <span className="rounded-lg bg-primary px-3.5 py-2 text-sm font-medium text-white group-hover:bg-primary-hover">{locked ? "View plot" : v.plot.length ? "Continue" : "Start plotting"}</span>
-        </button>)}
+        /* A card, not a button: the preview holds its own point markers, and a button cannot contain buttons. The real button is the action on the right. */
+        <div onClick={onPlot} className="group flex cursor-pointer items-center gap-4 rounded-xl border border-primary/30 bg-active/50 p-4 text-left hover:border-primary hover:bg-active lg:col-span-2">
+          <div inert aria-hidden className="w-16 shrink-0 overflow-hidden rounded-lg border border-line bg-white"><PlotCanvas patientId={v.patientId} view="full" points={v.plot} readOnly labels={false} /></div>
+          <div className="flex-1"><p className="text-[15px] font-semibold">Injection plotting</p><p className="text-[13px] text-muted">{v.plot.length ? `${v.plot.length} points documented${locked ? "" : ". Continue plotting."}` : locked ? "No points were documented." : "Document where treatment is given on the patient's photo."}</p></div>
+          <button type="button" onClick={(e) => { e.stopPropagation(); onPlot(); }} aria-label="Open injection plotting" className="rounded-lg bg-primary px-3.5 py-2 text-sm font-medium text-white group-hover:bg-primary-hover">{locked ? "View plot" : v.plot.length ? "Continue" : "Start plotting"}</button>
+        </div>)}
       <Panel><PanelHeader title="Visit summary" />
         <dl className="grid grid-cols-[120px_1fr] gap-y-2 p-4 text-[13px]"><dt className="text-muted">Patient</dt><dd><Link href={`/patients/${p.id}`} className="text-primary hover:underline">{p.first} {p.last}</Link></dd><dt className="text-muted">Service</dt><dd>{v.type}</dd><dt className="text-muted">Provider</dt><dd>{prov?.name}</dd><dt className="text-muted">Started</dt><dd>{fmtDate(v.date, true)}</dd><dt className="text-muted">Status</dt><dd>{v.status}</dd></dl>
         <div className="border-t border-line p-4"><Field label="Reason for visit"><Textarea disabled={locked} value={v.reason} onChange={(e) => patch({ reason: e.target.value })} placeholder="Why is the patient here today?" /></Field></div></Panel>
-      <Panel><PanelHeader title="Completion checklist" sub="Configured for this service" />
-        <ul className="divide-y divide-line">{status.map((s) => <li key={s.label} className="flex items-center gap-2.5 px-4 py-2.5 text-[13px]">{s.ok ? <Check className="size-4 text-[#2A8577]" /> : <X className="size-4 text-[#9A6200]" />}<span className={s.ok ? "text-muted" : "font-medium"}>{s.label}</span></li>)}{status.length === 0 && <li className="px-4 py-3 text-[13px] text-muted">No requirements configured.</li>}</ul></Panel>
+      {(() => {
+        const unmet = status.filter((x) => !x.ok).length;
+        const sub = !locked ? "Configured for this service" : unmet ? `Completed with ${unmet} item${unmet === 1 ? "" : "s"} not recorded` : "Everything was recorded";
+        return (
+          <Panel><PanelHeader title="Completion checklist" sub={sub} />
+            <ul className="divide-y divide-line">{status.map((s) => <li key={s.label} className="flex items-center gap-2.5 px-4 py-2.5 text-[13px]">
+              {s.ok ? <Check className="size-4 text-[#2A8577]" /> : locked ? <Minus className="size-4 text-slate-400" /> : <X className="size-4 text-[#9A6200]" />}
+              <span className={s.ok || locked ? "text-muted" : "font-medium"}>{s.label}</span>
+              {!s.ok && locked && <span className="ml-auto text-xs text-muted">Not recorded when completed</span>}</li>)}{status.length === 0 && <li className="px-4 py-3 text-[13px] text-muted">No requirements configured.</li>}</ul></Panel>);
+      })()}
     </div>
   );
 }
@@ -72,8 +81,11 @@ const NOTE_TPL: Record<string, [string, string, string, string]> = {
   "Physiotherapy session": ["Subjective", "Objective measures", "Intervention", "Plan and home programme"],
 };
 const AFTERCARE = ["Avoid strenuous exercise for 24 hours. Contact the practice if swelling or redness persists.", "Avoid touching or massaging the treated area for 6 hours. Use sunscreen daily.", "Mild tenderness is expected for 24 to 48 hours. Contact the practice if it worsens."];
+/** The note template a visit uses by default, so the same section names show on the visit and on the patient's Notes tab. */
+export const defaultNoteTemplate = (type: string, clinic: ClinicType) => (clinic === "Physiotherapy" ? "Physiotherapy session" : type === "Follow-up" ? "Follow-up note" : /inject/i.test(type) ? "Injectable treatment note" : "Standard visit note");
+export const noteLabelsFor = (type: string, clinic: ClinicType) => NOTE_TPL[defaultNoteTemplate(type, clinic)];
 export function NotesTab({ v, patch, locked, prior, clinic, saved }: { v: Visit; patch: Patch; locked: boolean; prior?: Visit; clinic: ClinicType; saved?: string }) {
-  const def = clinic === "Physiotherapy" ? "Physiotherapy session" : v.type === "Follow-up" ? "Follow-up note" : /inject/i.test(v.type) ? "Injectable treatment note" : "Standard visit note";
+  const def = defaultNoteTemplate(v.type, clinic);
   const [tpl, setTpl] = useState(def); const [showPrior, setShowPrior] = useState(false);
   const labels = NOTE_TPL[tpl]; const keys = ["subjective", "objective", "assessment", "plan"] as const;
   return (

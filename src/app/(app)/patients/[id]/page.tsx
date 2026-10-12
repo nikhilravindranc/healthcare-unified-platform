@@ -11,6 +11,7 @@ import { useUI } from "@/components/app/ui-state";
 import { Denied, ageOf } from "@/components/patient/shared";
 import { EditPatientDialog, SummaryTab } from "@/components/patient/summary";
 import { JourneyTab } from "@/components/patient/journey";
+import { PatientNotesTab } from "@/components/patient/notes-tab";
 import { PhotosTab } from "@/components/patient/photos-tab";
 import { FinancialsTab } from "@/components/patient/financials";
 import { DocumentsTab, FormsTab, PlansPanel } from "@/components/patient/records";
@@ -18,7 +19,7 @@ import { api, fmtDate, fmtTime, TODAY } from "@/lib/db";
 import { useAction, useAppointments, usePatients, useRole } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
 
-const TABS = [["summary", "Summary"], ["history", "Care history"], ["photos", "Photos"], ["docs", "Documents & forms"], ["financials", "Financials"]] as const;
+const TABS = [["summary", "Summary"], ["history", "Care history"], ["notes", "Notes"], ["photos", "Photos"], ["docs", "Documents & forms"], ["financials", "Financials"]] as const;
 /** Older deep links keep working. */
 const ALIAS: Record<string, string> = { journey: "history", visits: "history", treatments: "history", documents: "docs", forms: "docs", "follow-ups": "summary", communication: "summary" };
 
@@ -51,7 +52,7 @@ function Workspace({ id }: { id: string }) {
     toast.success("Visit started"); router.push(`/visits/${v.id}`);
   };
   const alerts = p.alerts ?? [];
-  const primary = TABS.filter(([k]) => (k !== "financials" || can("financials")) && (k !== "photos" || can("photos")));
+  const primary = TABS.filter(([k]) => (k !== "financials" || can("financials")) && (k !== "photos" || can("photos")) && (k !== "notes" || can("notes")));
   const guard = (perm: Parameters<typeof can>[0], what: string, el: React.ReactNode) => (can(perm) ? el : <Denied what={what} />);
 
   return (
@@ -79,6 +80,7 @@ function Workspace({ id }: { id: string }) {
       <div role="tabpanel">
         {tab === "summary" && <SummaryTab p={p} goto={goto} />}
         {tab === "history" && <div className="space-y-5"><PlansPanel p={p} /><JourneyTab p={p} goto={goto} /></div>}
+        {tab === "notes" && guard("notes", "clinical notes", <PatientNotesTab p={p} />)}
         {tab === "photos" && guard("photos", "patient photos", <PhotosTab p={p} />)}
         {tab === "docs" && <div className="space-y-5"><DocumentsTab p={p} /><FormsTab p={p} /></div>}
         {tab === "financials" && guard("financials", "patient financials", <FinancialsTab p={p} invoiceId={invoice} />)}

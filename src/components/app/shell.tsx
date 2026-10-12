@@ -32,6 +32,7 @@ const MAIN: NavItem[] = [
   { href: "/overview", label: "Today", icon: LayoutGrid, perm: "patients" },
   { href: "/calendar", label: "Calendar", icon: CalendarDays, perm: "patients" },
   { href: "/patients", label: "Patients", icon: Users, perm: "patients" },
+  { href: "/visits", label: "Visits", icon: Stethoscope, perm: "patients" },
   { href: "/enquiries", label: "Enquiries", icon: Inbox, perm: ["enquiries", "enquiries_view"] },
   { href: "/follow-ups", label: "Follow-ups", icon: Repeat, perm: "patients" },
   { href: "/reports", label: "Reports", icon: BarChart3, perm: "reports" },
