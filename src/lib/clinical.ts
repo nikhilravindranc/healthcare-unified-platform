@@ -61,7 +61,7 @@ export function saveClinic(t: ClinicType) { try { localStorage.setItem("pms.clin
 
 /* ---------- Roles and permissions ---------- */
 export type Role = "Owner" | "Practice manager" | "Provider" | "Front desk" | "Staff" | "Marketing";
-export const PERMS = [["patients", "Patient data"], ["notes", "Clinical notes"], ["photos", "Photos"], ["financials", "Financials"], ["refunds", "Refunds"], ["inventory", "Inventory"], ["reports", "Reports"], ["exports", "Exports"], ["settings", "Settings"], ["ai", "AI actions"], ["crm", "CRM and enquiries"], ["booking", "Manage bookings"], ["booking_view", "View bookings"], ["campaigns", "Manage campaigns"], ["insights", "Marketing insights"], ["enquiries", "Enquiries"]] as const;
+export const PERMS = [["patients", "Patient data"], ["notes", "Clinical notes"], ["photos", "Photos"], ["financials", "Financials"], ["refunds", "Refunds"], ["inventory", "Inventory"], ["reports", "Reports"], ["exports", "Exports"], ["settings", "Settings"], ["ai", "AI actions"], ["crm", "CRM"], ["booking", "Manage bookings"], ["booking_view", "View bookings"], ["campaigns", "Manage campaigns"], ["insights", "Marketing insights"], ["enquiries", "Enquiries"]] as const;
 export type PermKey = (typeof PERMS)[number][0];
 export const ROLE_PERMS: Record<Role, PermKey[]> = {
   Owner: ["patients", "notes", "photos", "financials", "refunds", "inventory", "reports", "exports", "settings", "ai", "crm", "booking", "booking_view", "campaigns", "insights", "enquiries"],
