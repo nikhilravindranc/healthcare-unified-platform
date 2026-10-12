@@ -26,7 +26,7 @@ export default function SignUpPage() {
 
   return (
     <AuthShell>
-      <AuthTitle title="Start managing your practice" text="Create your EVOQ Practice Management account." />
+      <AuthTitle title="Get started with Healthcare Platform" text="Create your EVOQ Healthcare Platform account." />
       <form onSubmit={submit} noValidate className="space-y-4">
         {err === "duplicate" && <Alert tone="error" title="An account already exists for this email">Try <AuthLink href="/sign-in">signing in</AuthLink> or reset your password.</Alert>}
         {err === "network" && <Alert tone="error" title="Couldn't create your account">Check your connection and try again.</Alert>}

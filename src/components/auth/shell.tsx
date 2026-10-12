@@ -13,17 +13,17 @@ export function AuthShell({ children, wide }: { children: React.ReactNode; wide?
         <div className="relative z-10 flex h-full flex-col justify-between p-10 xl:p-14">
           <Logo height={34} />
           <div className="max-w-md">
-            <h2 className="text-[30px] font-semibold leading-[1.2] tracking-tight">See the whole practice day at a glance.</h2>
+            <h2 className="text-[30px] font-semibold leading-[1.2] tracking-tight">Run your whole practice from one platform.</h2>
             <p className="mt-3 text-[15px] leading-relaxed text-muted">
-              Appointments, patient flow, visit documentation and follow-ups in one calm workspace for your front desk and providers.
+              Patient records, scheduling, CRM, online booking and campaigns in one calm workspace for your front desk, providers and marketing team.
             </p>
             <ul className="mt-8 space-y-3 text-sm text-slate-600">
-              {["Schedule and check in patients faster", "Keep clinical notes next to the appointment", "Never lose track of a follow-up"].map((t) => (
+              {["Schedule and check in patients faster", "Keep clinical notes next to the appointment", "Turn enquiries into bookings and repeat visits"].map((t) => (
                 <li key={t} className="flex items-center gap-2.5"><span className="grid size-5 place-items-center rounded-full bg-white text-primary shadow-sm"><Check className="size-3" strokeWidth={3} /></span>{t}</li>
               ))}
             </ul>
           </div>
-          <p className="text-xs text-muted">© 2026 EVOQ. Healthcare Practice Management.</p>
+          <p className="text-xs text-muted">© 2026 EVOQ. Healthcare Platform.</p>
         </div>
         <svg className="pointer-events-none absolute -bottom-24 -right-32 size-[560px] opacity-70" viewBox="0 0 400 400" aria-hidden>
           <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#DCDDF5" /><stop offset=".55" stopColor="#BFEAF0" /><stop offset="1" stopColor="#7ACFC5" /></linearGradient></defs>

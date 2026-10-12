@@ -27,7 +27,7 @@ export default function SignInPage() {
 
   return (
     <AuthShell>
-      <AuthTitle title="Welcome back" text="Sign in to your practice" />
+      <AuthTitle title="Welcome back" text="Sign in to Healthcare Platform" />
       <form onSubmit={submit} noValidate className="space-y-4">
         {err === "invalid" && <Alert tone="error" title="Incorrect email or password">Check your details and try again.</Alert>}
         {err === "network" && <Alert tone="error" title="Can't reach the server">Check your connection and try again.</Alert>}

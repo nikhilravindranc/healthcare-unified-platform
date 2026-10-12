@@ -6,7 +6,7 @@ export interface Provider { id: string; name: string; short: string; specialty: 
 export interface Service { id: string; name: string; category: string; specialty?: string; description?: string; duration: number; providerIds: string[]; locationIds: string[]; status: "Active" | "Inactive" }
 export interface Location { id: string; name: string; address: string; phone: string; timezone?: string; hours?: string; status: "Open" | "Closed" }
 export interface Room { id: string; name: string; locationId: string; type: string; availability: string; capacity?: number; status?: "Active" | "Inactive" }
-export interface AppUser { id: string; name: string; email: string; role: "Owner" | "Practice manager" | "Provider" | "Front desk" | "Staff"; status: "Active" | "Invited" }
+export interface AppUser { id: string; name: string; email: string; role: "Owner" | "Practice manager" | "Provider" | "Front desk" | "Staff" | "Marketing"; status: "Active" | "Invited" }
 
 export interface Patient {
   id: string; first: string; last: string; dob: string; phone: string; email: string;

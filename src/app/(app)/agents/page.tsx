@@ -107,7 +107,7 @@ function Agents() {
                 </li>);
             })}
           </ul>))}
-        {agent?.id === "recall" && <p className="mt-4 text-xs text-muted">Outreach to these patients is handled in Campaigns, not in Practice Management.</p>}
+        {agent?.id === "recall" && <p className="mt-4 text-xs text-muted">Outreach to these patients is handled in Campaigns, not in the Practice module.</p>}
       </Sheet>
     </>
   );

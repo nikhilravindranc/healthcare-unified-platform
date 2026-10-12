@@ -16,7 +16,7 @@ export const DEFAULTS: Settings = {
   openTime: "08:30", closeTime: "17:30", defaultDuration: 30, bufferMin: 0, noShowPolicy: "Record the no-show and offer to rebook", cancelHours: 24, reminders: true, confirmRequests: true,
   idPrefix: "P-", dobRequired: false, phoneRequired: true, emailRequired: true, referralSources: "Website enquiry, Patient referral, Provider referral, Social media, Walk-in", tagList: "VIP, Regular, Injectables, Skin treatments", alertTypes: "Allergy, Medical, Skin, Other",
   maxPhotoMB: 5, photoConsentRequired: true, photoRetentionYears: 10,
-  taxRate: 0, invoicePrefix: "INV-", dueDays: 14, paymentMethods: "Card (recorded manually), Cash, Bank transfer, Cheque", billingOwner: "Practice Management (until EVOQ Billing is connected)",
+  taxRate: 0, invoicePrefix: "INV-", dueDays: 14, paymentMethods: "Card (recorded manually), Cash, Bank transfer, Cheque", billingOwner: "Practice module (until EVOQ Billing is connected)",
   notifyWaitMin: 15, notifyEmail: true, notifySms: false, notifyAssignments: true,
   agents: { prep: true, followup: true, appointment: true, recall: true, noshow: true, insights: true, engagement: false, scribe: false, receptionist: false }, sessionMinutes: 30, mfa: true, setupPending: [],
 };

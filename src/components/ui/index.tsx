@@ -7,10 +7,10 @@ import type { ApptStatus } from "@/lib/types";
 
 /* ---------------- Logo (official asset, cropped by CSS only) ---------------- */
 export function Logo({ variant = "full", height = 28, className }: { variant?: "full" | "icon"; height?: number; className?: string }) {
-  const r = variant === "full" ? { x: 120, y: 200, w: 1760, h: 300 } : { x: 126, y: 203, w: 296, h: 292 };
+  const r = variant === "full" ? { x: 120, y: 200, w: 1330, h: 300 } : { x: 126, y: 203, w: 296, h: 292 };
   const s = height / r.h;
   return (
-    <span className={cn("block shrink-0 overflow-hidden", className)} style={{ width: r.w * s, height }} role="img" aria-label="Healthcare Practice Management">
+    <span className={cn("block shrink-0 overflow-hidden", className)} style={{ width: r.w * s, height }} role="img" aria-label="Healthcare Platform">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src="/logo.webp" alt="" draggable={false} style={{ width: 2000 * s, maxWidth: "none", marginLeft: -r.x * s, marginTop: -r.y * s }} />
     </span>

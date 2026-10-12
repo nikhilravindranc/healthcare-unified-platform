@@ -22,6 +22,7 @@ import { SearchDialog } from "./search";
 import { GuidePanel } from "./guide";
 import { CheckoutDialog } from "./checkout";
 import { toast } from "sonner";
+import { PLATFORM_MODULES } from "@/platform/modules";
 
 type NavItem = { href: string; label: string; icon: LucideIcon; perm?: PermKey };
 const MAIN: NavItem[] = [
@@ -94,6 +95,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="p-8" role="status" aria-label="Loading"><Skeleton className="h-8 w-48" /><Skeleton className="mt-6 h-64 w-full" /></div>
   );
 
+  const modules: NavItem[] = PLATFORM_MODULES.filter((m) => !m.perms || m.perms.some(can)).map((m) => ({ href: m.href, label: m.label, icon: m.icon }));
   const unread = notes?.filter((n) => !n.read).length ?? 0;
   const isActive = (href: string) => path === href || path.startsWith(href + "/");
   const toggle = () => setCollapsed((c) => { try { localStorage.setItem("pms.sidebar", c ? "0" : "1"); } catch {} return !c; });
@@ -116,6 +118,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <p className={cn("px-2.5 pb-1 pt-5 text-[11px] font-medium uppercase tracking-wider text-muted", collapsed ? "sr-only" : "")}>Practice</p>
           <div className={cn("my-3 h-px bg-line", collapsed ? "" : "hidden")} />
           {PRACTICE.filter((i) => !i.perm || can(i.perm)).map((i) => <NavLink key={i.href} item={i} collapsed={collapsed} active={isActive(i.href)} />)}
+          {modules.length > 0 && (
+            <>
+              <p className={cn("px-2.5 pb-1 pt-5 text-[11px] font-medium uppercase tracking-wider text-muted", collapsed ? "sr-only" : "")}>Platform</p>
+              <div className={cn("my-3 h-px bg-line", collapsed ? "" : "hidden")} />
+              {modules.map((i) => <NavLink key={i.href} item={i} collapsed={collapsed} active={isActive(i.href)} />)}
+            </>
+          )}
         </nav>
         <div className="space-y-0.5 border-t border-line p-3">
           {can("settings") && <NavLink item={{ href: "/practice/settings", label: "Settings", icon: Settings }} collapsed={collapsed} active={isActive("/practice/settings")} />}
@@ -200,7 +209,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <Menu>
           <MenuTrigger asChild><button className="flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium text-muted"><MoreHorizontal className="size-5" aria-hidden />More</button></MenuTrigger>
           <MenuContent side="top" align="end">
-            {[{ href: "/follow-ups", label: "Follow-ups", icon: Repeat }, { href: "/reports", label: "Reports", icon: BarChart3 }, { href: "/agents", label: "EVI agents", icon: Bot }, ...PRACTICE, { href: "/practice/settings", label: "Settings", icon: Settings }].map((i) => (
+            {[{ href: "/follow-ups", label: "Follow-ups", icon: Repeat }, { href: "/reports", label: "Reports", icon: BarChart3 }, { href: "/agents", label: "EVI agents", icon: Bot }, ...PRACTICE, ...modules, { href: "/practice/settings", label: "Settings", icon: Settings }].map((i) => (
               <MenuItem key={i.href} onSelect={() => router.push(i.href)}><i.icon className="size-4 text-muted" />{i.label}</MenuItem>
             ))}
           </MenuContent>

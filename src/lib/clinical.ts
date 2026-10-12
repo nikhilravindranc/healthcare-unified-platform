@@ -60,15 +60,16 @@ export function loadClinic(): ClinicType { try { return (localStorage.getItem("p
 export function saveClinic(t: ClinicType) { try { localStorage.setItem("pms.clinicType", t); window.dispatchEvent(new Event("pms-clinic")); } catch {} }
 
 /* ---------- Roles and permissions ---------- */
-export type Role = "Owner" | "Practice manager" | "Provider" | "Front desk" | "Staff";
-export const PERMS = [["patients", "Patient data"], ["notes", "Clinical notes"], ["photos", "Photos"], ["financials", "Financials"], ["refunds", "Refunds"], ["inventory", "Inventory"], ["reports", "Reports"], ["exports", "Exports"], ["settings", "Settings"], ["ai", "AI actions"]] as const;
+export type Role = "Owner" | "Practice manager" | "Provider" | "Front desk" | "Staff" | "Marketing";
+export const PERMS = [["patients", "Patient data"], ["notes", "Clinical notes"], ["photos", "Photos"], ["financials", "Financials"], ["refunds", "Refunds"], ["inventory", "Inventory"], ["reports", "Reports"], ["exports", "Exports"], ["settings", "Settings"], ["ai", "AI actions"], ["crm", "CRM and enquiries"], ["booking", "Manage bookings"], ["booking_view", "View bookings"], ["campaigns", "Manage campaigns"], ["insights", "Marketing insights"]] as const;
 export type PermKey = (typeof PERMS)[number][0];
 export const ROLE_PERMS: Record<Role, PermKey[]> = {
-  Owner: ["patients", "notes", "photos", "financials", "refunds", "inventory", "reports", "exports", "settings", "ai"],
-  "Practice manager": ["patients", "financials", "refunds", "inventory", "reports", "exports", "settings", "ai"],
-  Provider: ["patients", "notes", "photos", "inventory", "reports", "ai"],
-  "Front desk": ["patients", "financials"],
+  Owner: ["patients", "notes", "photos", "financials", "refunds", "inventory", "reports", "exports", "settings", "ai", "crm", "booking", "booking_view", "campaigns", "insights"],
+  "Practice manager": ["patients", "financials", "refunds", "inventory", "reports", "exports", "settings", "ai", "crm", "booking", "booking_view", "campaigns", "insights"],
+  Provider: ["patients", "notes", "photos", "inventory", "reports", "ai", "booking_view"],
+  "Front desk": ["patients", "financials", "crm", "booking", "booking_view"],
   Staff: ["patients", "photos", "inventory"],
+  Marketing: ["crm", "campaigns", "insights"],
 };
 try { const saved = JSON.parse(localStorage.getItem("pms.rolePerms") ?? "null"); if (saved) (Object.keys(saved) as Role[]).forEach((r) => { if (r !== "Owner" && ROLE_PERMS[r]) ROLE_PERMS[r] = saved[r]; }); } catch {}
 export function saveRolePerms() { try { localStorage.setItem("pms.rolePerms", JSON.stringify(ROLE_PERMS)); window.dispatchEvent(new Event("pms-clinic")); } catch {} }

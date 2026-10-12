@@ -6,8 +6,8 @@ import { Providers } from "@/components/providers";
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Healthcare Practice Management",
-  description: "Practice management for medical, dental, aesthetics and wellness practices.",
+  title: "Healthcare Platform",
+  description: "One platform for practice management, CRM, online booking and campaigns for medical, dental, aesthetics and wellness practices.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
