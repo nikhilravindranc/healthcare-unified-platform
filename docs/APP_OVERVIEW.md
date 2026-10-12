@@ -1,6 +1,6 @@
 # Healthcare Platform: what the app is today
 
-Status snapshot of the frontend after the Enquiries, Marketing Insights and navigation work (commit `af261dd`). For the target structure see [ARCHITECTURE.md](ARCHITECTURE.md).
+Status snapshot of the frontend after the Enquiries, Marketing Insights and navigation work (after the stabilization pass). For the target structure see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## 1. In one paragraph
 A clickable, frontend-only web app. One part is a complete Practice Management System (PMS) demo for clinics: schedule, patients, visits, photos, billing, inventory, forms, reports and AI "agents". On top of it sit a working Enquiries screen (front-desk handling of enquiries through to a booked appointment) and a Marketing Insights screen, both on sample data. CRM, Online Bookings and Campaigns exist only as labelled previews. There is no backend: all data is in-memory sample data that resets on reload, and sign-in, roles and settings are demo state in the browser.
@@ -14,7 +14,7 @@ A clickable, frontend-only web app. One part is a complete Practice Management S
 | Forms | react-hook-form + zod 4 validation |
 | Feedback | sonner toasts |
 | Persistence | None server-side. `localStorage` for session, role, permissions, settings, sidebar; sample data in memory |
-| Tests | None |
+| Tests | `npm test`: 12 unit tests for permissions, appointment/insights logic and the Flow layout. No UI test suite |
 | Run | `npm run dev` (development), `npm run build` then `npm run start` (production check) |
 
 Note: this Next.js version differs from older ones. [AGENTS.md](../AGENTS.md) tells developers to read `node_modules/next/dist/docs/` before changing framework code.
@@ -36,7 +36,9 @@ Modules are registered in `src/platform/modules.ts` and appear in the sidebar's 
 ## 4. Features
 ### Enquiries and Marketing Insights
 - **Enquiries (`/enquiries`)**: list with status tabs (New, Contacted, Appointment booked, Closed, Not converted), search by name, phone or email, source and assigned-staff filters, pagination and a mobile card layout. 48 synthetic enquiries.
+- **Three views**: List, Board (stage columns with drag between stages and quick buttons) and Flow (Source to Stage ribbon diagram with a side panel; fits phone screens without sideways scrolling). The choice is remembered per browser.
 - **Enquiry detail panel**: contact details, requested service, source, status and assignee (editable), notes, follow-up tasks (add, mark done, overdue flag) and history.
+- **Appointments**: an enquiry links to a real appointment. Cancelled or missed appointments reopen the enquiry, keep its history and show a rebook prompt. Marketing Insights counts linked appointments, not statuses.
 - **Actions**: create and edit an enquiry (validated; phone or email required; no clinical details collected), change status, assign staff, close or mark not converted, link to an existing patient (matches are suggested, never automatic) or create a patient (demo), and book an appointment using the existing appointment panel, prefilled from the enquiry. Booking marks the enquiry "Appointment booked".
 - **Marketing Insights (`/marketing-insights`)**: total enquiries, appointments from enquiries, enquiry-to-appointment rate, enquiries over time, by source, conversion by source and campaign attribution. Labelled demo data. No ad platform or analytics is connected.
 - **Today page**: an "Enquiries to follow up" panel and a "New enquiry" quick action, for roles with the Enquiries permission.
@@ -57,7 +59,7 @@ Modules are registered in `src/platform/modules.ts` and appear in the sidebar's 
 - **Onboarding**: sign in, sign up, email verification, forgot/reset password, practice setup, welcome page. A "Use the demo practice account" button on the sign-in page fills the demo login.
 
 ## 5. Roles and permissions
-Six roles. Permissions can be edited per role in Practice > Settings. Owner is fixed. Permissions saved earlier in a browser are kept, and the newer defaults are merged in once.
+Six roles. Permissions can be edited per role in Practice > Settings. Owner is fixed. Only a role's changes are stored, on top of the code defaults, so new defaults reach roles that did not customize that permission and custom choices are never overwritten.
 
 | Permission | Owner | Practice manager | Provider | Front desk | Staff | Marketing |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|
@@ -72,7 +74,9 @@ Six roles. Permissions can be edited per role in Practice > Settings. Owner is f
 | Settings | ✓ | ✓ |  |  |  |  |
 | AI actions | ✓ | ✓ | ✓ |  |  |  |
 | CRM | ✓ | ✓ |  | ✓ |  | ✓ |
-| Enquiries | ✓ | ✓ |  | ✓ |  |  |
+| Manage enquiries | ✓ | ✓ |  | ✓ |  |  |
+| View enquiries (read-only) | ✓ | ✓ |  | ✓ |  | ✓ |
+| Practice configuration | ✓ | ✓ | ✓ | ✓ | ✓ |  |
 | Manage bookings | ✓ | ✓ |  | ✓ |  |  |
 | View bookings | ✓ | ✓ | ✓ | ✓ |  |  |
 | Manage campaigns | ✓ | ✓ |  |  |  | ✓ |
@@ -83,11 +87,12 @@ How they are enforced today (frontend only):
 - The **Patient data** permission now blocks the patient-facing pages (Today, Calendar, Patients, Visits, Follow-ups, Agents), including by direct URL. Marketing lands on Marketing Insights.
 - Enquiries and Marketing Insights check their permission on the page, not just in the menu. A switched-off optional module also blocks its direct URL.
 - CRM, booking and campaign permissions only gate their preview pages, because those modules have no features yet.
-- Marketing can still open practice configuration pages (Team, Services, Locations, Forms), which had no permission before.
+- Practice configuration (Team, Services, Locations, Forms, Integrations) needs the new Practice configuration permission, so Marketing is blocked by menu and direct URL. Inventory and Settings keep their own permissions.
+- Read-only enquiry access (Marketing): the enquiry views hide phone and email and turn off every change.
 - "View as role (demo)" in the account menu switches roles for testing. A real app must do this server-side.
 
 ## 6. Data and the shared Contact idea
-- Sample data lives in `src/lib/db.ts` and `src/lib/clinical.ts`: 12 patients, 3 providers, 7 services, 2 locations, 6 rooms, 6 users, appointments dated around 2026-10-07 (a fixed "today" and a demo clock), visits, photos, invoices, inventory, forms, treatment plans, audit entries.
+- Sample data lives in `src/lib/db.ts` and `src/lib/clinical.ts`: 25 patients (12 original plus 13 created from converted enquiries), 3 providers, 7 services, 2 locations, 6 rooms, 6 users, appointments dated around 2026-10-07 (a fixed "today" and a demo clock), visits, photos, invoices, inventory, forms, treatment plans, audit entries.
 - Changes during a session are held in memory and lost on reload.
 - `Contact` (`src/platform/contact.ts`) is a proposed shared person record with per-channel, per-purpose consent. It is not wired into PMS data. CRM shows contacts derived from patients as an interim demo. Ownership between Patient, CRM and Contact is a decision still to agree with the backend developer (see ARCHITECTURE.md).
 
@@ -96,7 +101,7 @@ How they are enforced today (frontend only):
 - CRM, Online Bookings and Campaigns features. Messaging, email/SMS sending, online booking page, payment processing, EVOQ Billing and Campaigns connections.
 - Enquiries are not yet part of Reports or EVI agents, and enquiry follow-up tasks are separate from patient Follow-ups.
 - Real AI. File storage (uploaded photos and documents are not persisted).
-- Automated tests, accessibility audit, audit-log persistence, data export beyond the audit-log CSV.
+- UI-level automated tests, accessibility audit, audit-log persistence, data export beyond the audit-log CSV.
 - Multi-clinic tenancy: one practice per browser.
 
 ## 8. Risks to know before building further
@@ -108,7 +113,7 @@ How they are enforced today (frontend only):
 ## 9. Options for the next step
 1. **Hand off as is** to the backend developer with ARCHITECTURE.md and this file, and agree the API and identity model first.
 2. **Build the next module's UI**, most reuse first: Online Bookings (can reuse providers, services, rooms and availability), then CRM, then Campaigns (audiences and consent).
-3. **Close remaining permission gaps**: view-only booking behavior and permissions for the practice configuration pages.
+3. **Close remaining permission gaps**: view-only booking behavior, and field-level rules for what read-only roles may see.
 4. **Split the shell** into a generic platform shell plus PMS-only parts, so new modules don't depend on PMS panels.
 5. **Clean-up**: tests, renaming internal `pms.*` keys, removing sample-data clock assumptions.
 

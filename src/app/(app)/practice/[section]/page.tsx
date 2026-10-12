@@ -13,8 +13,8 @@ import type { PermKey } from "@/lib/clinical";
 import { cn } from "@/lib/utils";
 
 const NAV: [string, string, PermKey?][] = [
-  ["team", "Team"], ["services", "Services & treatments"], ["inventory", "Inventory", "inventory"], ["locations", "Locations & rooms"],
-  ["forms", "Forms"], ["integrations", "Integrations"], ["settings", "Settings", "settings"],
+  ["team", "Team", "config"], ["services", "Services & treatments", "config"], ["inventory", "Inventory", "inventory"], ["locations", "Locations & rooms", "config"],
+  ["forms", "Forms", "config"], ["integrations", "Integrations", "config"], ["settings", "Settings", "settings"],
 ];
 /** Older links keep working. */
 const ALIAS: Record<string, string> = { providers: "team", users: "team", rooms: "locations" };

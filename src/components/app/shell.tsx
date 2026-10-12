@@ -27,21 +27,21 @@ import { GROWTH_NAV, moduleEnabled, SWITCHER_MODULES } from "@/platform/modules"
 import { useSettings } from "@/lib/settings";
 
 const CLINICAL = ["/overview", "/calendar", "/patients", "/visits", "/follow-ups", "/agents", "/front-desk"];
-type NavItem = { href: string; label: string; icon: LucideIcon; perm?: PermKey };
+type NavItem = { href: string; label: string; icon: LucideIcon; perm?: PermKey | PermKey[] };
 const MAIN: NavItem[] = [
   { href: "/overview", label: "Today", icon: LayoutGrid, perm: "patients" },
   { href: "/calendar", label: "Calendar", icon: CalendarDays, perm: "patients" },
   { href: "/patients", label: "Patients", icon: Users, perm: "patients" },
-  { href: "/enquiries", label: "Enquiries", icon: Inbox, perm: "enquiries" },
+  { href: "/enquiries", label: "Enquiries", icon: Inbox, perm: ["enquiries", "enquiries_view"] },
   { href: "/follow-ups", label: "Follow-ups", icon: Repeat, perm: "patients" },
   { href: "/reports", label: "Reports", icon: BarChart3, perm: "reports" },
 ];
 const PRACTICE: NavItem[] = [
-  { href: "/practice/team", label: "Team", icon: UserRound },
-  { href: "/practice/services", label: "Services & treatments", icon: Layers },
+  { href: "/practice/team", label: "Team", icon: UserRound, perm: "config" },
+  { href: "/practice/services", label: "Services & treatments", icon: Layers, perm: "config" },
   { href: "/practice/inventory", label: "Inventory", icon: Package, perm: "inventory" },
-  { href: "/practice/locations", label: "Locations & rooms", icon: MapPin },
-  { href: "/practice/forms", label: "Forms", icon: FileText },
+  { href: "/practice/locations", label: "Locations & rooms", icon: MapPin, perm: "config" },
+  { href: "/practice/forms", label: "Forms", icon: FileText, perm: "config" },
 ];
 
 function NavLink({ item, collapsed, active }: { item: NavItem; collapsed: boolean; active: boolean }) {
@@ -71,6 +71,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { data: notes } = useNotifications();
   const { role, can } = useRole();
   const st = useSettings();
+  const allowed = (i: NavItem) => !i.perm || (Array.isArray(i.perm) ? i.perm.some(can) : can(i.perm));
   const markRead = useAction(api.markNotifications);
 
   useEffect(() => { if (session === null) router.replace("/sign-in"); }, [session, router]);
@@ -124,10 +125,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </button>
         <nav aria-label="Primary" className="scroll-thin flex-1 space-y-0.5 overflow-y-auto p-3">
           <p className={cn("px-2.5 pb-1 text-[11px] font-medium uppercase tracking-wider text-muted", collapsed ? "sr-only" : "")}>Clinic</p>
-          {MAIN.filter((i) => !i.perm || can(i.perm)).map((i) => <NavLink key={i.href} item={i} collapsed={collapsed} active={isActive(i.href)} />)}
-          <p className={cn("px-2.5 pb-1 pt-5 text-[11px] font-medium uppercase tracking-wider text-muted", collapsed ? "sr-only" : "")}>Practice</p>
-          <div className={cn("my-3 h-px bg-line", collapsed ? "" : "hidden")} />
-          {PRACTICE.filter((i) => !i.perm || can(i.perm)).map((i) => <NavLink key={i.href} item={i} collapsed={collapsed} active={isActive(i.href)} />)}
+          {MAIN.filter(allowed).map((i) => <NavLink key={i.href} item={i} collapsed={collapsed} active={isActive(i.href)} />)}
+          {PRACTICE.some(allowed) && <><p className={cn("px-2.5 pb-1 pt-5 text-[11px] font-medium uppercase tracking-wider text-muted", collapsed ? "sr-only" : "")}>Practice</p>
+          <div className={cn("my-3 h-px bg-line", collapsed ? "" : "hidden")} /></>}
+          {PRACTICE.filter(allowed).map((i) => <NavLink key={i.href} item={i} collapsed={collapsed} active={isActive(i.href)} />)}
           {modules.length > 0 && (
             <>
               <p className={cn("px-2.5 pb-1 pt-5 text-[11px] font-medium uppercase tracking-wider text-muted", collapsed ? "sr-only" : "")}>Growth &amp; Engagement</p>
@@ -221,7 +222,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <Menu>
           <MenuTrigger asChild><button className="flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium text-muted"><MoreHorizontal className="size-5" aria-hidden />More</button></MenuTrigger>
           <MenuContent side="top" align="end">
-            {[...(can("patients") ? [{ href: "/follow-ups", label: "Follow-ups", icon: Repeat }, { href: "/agents", label: "EVI agents", icon: Bot }] : []), ...(can("reports") ? [{ href: "/reports", label: "Reports", icon: BarChart3 }] : []), ...(can("enquiries") ? [{ href: "/enquiries", label: "Enquiries", icon: Inbox }] : []), ...PRACTICE, ...modules, { href: "/practice/settings", label: "Settings", icon: Settings }].map((i) => (
+            {[...(can("patients") ? [{ href: "/follow-ups", label: "Follow-ups", icon: Repeat }, { href: "/agents", label: "EVI agents", icon: Bot }] : []), ...(can("reports") ? [{ href: "/reports", label: "Reports", icon: BarChart3 }] : []), ...(can("enquiries") || can("enquiries_view") ? [{ href: "/enquiries", label: "Enquiries", icon: Inbox }] : []), ...PRACTICE.filter(allowed), ...modules, { href: "/practice/settings", label: "Settings", icon: Settings }].map((i) => (
               <MenuItem key={i.href} onSelect={() => router.push(i.href)}><i.icon className="size-4 text-muted" />{i.label}</MenuItem>
             ))}
           </MenuContent>

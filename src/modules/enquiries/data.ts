@@ -1,4 +1,5 @@
-import { addDays, TODAY } from "@/lib/db";
+import { addDays, appointments, patients, rooms, services, TODAY } from "@/lib/db";
+import type { Appointment, ApptStatus, Patient } from "@/lib/types";
 import type { Enquiry, EnquirySource, EnquiryStatus } from "./types";
 
 /** Synthetic sample enquiries. Names, numbers and addresses are fictional. */
@@ -42,3 +43,27 @@ function build(i: number): Enquiry {
   return e;
 }
 export const enquiries: Enquiry[] = Array.from({ length: 48 }, (_, i) => build(i)).sort((a, b) => b.received.localeCompare(a.received));
+
+/**
+ * Seed consistency: every enquiry stored as "Appointment booked" gets a real patient and a real PMS appointment,
+ * so relationships (and Marketing Insights counts) come from records, not from the status text.
+ * Two of them have cancelled appointments so cancellation handling is visible in the demo.
+ */
+const TIMES = ["09:00", "09:30", "10:30", "11:15", "13:30", "14:15", "15:45", "16:30"];
+enquiries.filter((e) => e.status === "Appointment booked").forEach((e, i) => {
+  const [first, ...rest] = e.name.split(" ");
+  const pid = `P-${10400 + i}`;
+  const svc = services.find((s) => s.id === (e.serviceId ?? "consult"))!;
+  const prov = svc.providerIds[0];
+  const patient: Patient = { id: pid, first, last: rest.join(" "), dob: "", phone: e.phone ?? "(415) 555-0100", email: e.email ?? `${first}.${rest.join("")}@example.com`.toLowerCase(), providerId: prov, status: "New", gender: "", address: "", emergency: "", tags: [], referral: e.source, alerts: [] };
+  patients.push(patient);
+  let date = addDays(e.received, 2 + (i % 4));
+  if (date === TODAY) date = addDays(TODAY, -1);
+  const status: ApptStatus = i === 3 || i === 8 ? "cancelled" : date < TODAY ? "completed" : "confirmed";
+  const room = rooms.find((r) => r.locationId === svc.locationIds[0])!;
+  const appt: Appointment = { id: `A-E${1001 + i}`, patientId: pid, providerId: prov, serviceId: svc.id, date, time: TIMES[i % TIMES.length], duration: svc.duration, locationId: svc.locationIds[0], roomId: room.id, status, notes: `From enquiry ${e.id}` };
+  appointments.push(appt);
+  e.patientId = pid; e.appointmentId = appt.id;
+  e.history = e.history.filter((h) => h.text !== "Appointment booked");
+  e.history.push({ id: `h${e.id}c`, at: addDays(e.received, 2), text: `Appointment ${appt.id} booked` });
+});

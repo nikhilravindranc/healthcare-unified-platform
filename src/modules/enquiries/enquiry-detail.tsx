@@ -1,29 +1,31 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CalendarPlus, Check, Link2, Pencil, UserPlus } from "lucide-react";
+import { CalendarPlus, Check, ChevronDown, Link2, Pencil, UserPlus } from "lucide-react";
 import { toast } from "sonner";
-import { Alert, Badge, Button, ConfirmDialog, Field, Input, Select, Sheet, Skeleton } from "@/components/ui";
+import { Alert, Badge, Button, ConfirmDialog, Field, Input, Menu, MenuContent, MenuItem, MenuTrigger, Select, Sheet, Skeleton, StatusBadge } from "@/components/ui";
 import { useUI } from "@/components/app/ui-state";
 import { useSession } from "@/lib/auth";
-import { fmtDate, TODAY } from "@/lib/db";
+import { fmtDate, fmtTime, TODAY } from "@/lib/db";
 import { useAction, usePatients, useRefs, useRole } from "@/lib/hooks";
 import { enquiriesApi } from "./api";
 import { taskSchema, type TaskInput } from "./schemas";
-import { EnquiryStatusBadge } from "./status";
 import { ENQUIRY_STATUSES, type Enquiry, type EnquiryStatus } from "./types";
+import { useBookEnquiry } from "./use-book";
+import { useEnquiryAccess } from "./enquiry-actions";
 
 const digits = (s?: string) => (s ?? "").replace(/\D/g, "");
 const Row = ({ l, children }: { l: string; children: React.ReactNode }) => <div className="flex justify-between gap-4 py-1.5 text-[13px]"><dt className="text-muted">{l}</dt><dd className="text-right font-medium">{children}</dd></div>;
 const H = ({ children }: { children: React.ReactNode }) => <h3 className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted">{children}</h3>;
 
-export function EnquiryDetailSheet({ enquiry, onClose, onEdit }: { enquiry?: Enquiry; onClose: () => void; onEdit: (e: Enquiry) => void }) {
+export function EnquiryDetailSheet({ enquiry, needPatient: askPatient, onClose, onEdit }: { enquiry?: Enquiry; /** Open with the "link or create a patient" prompt showing. */ needPatient?: boolean; onClose: () => void; onEdit: (e: Enquiry) => void }) {
   const { data: refs } = useRefs();
+  const ui = useUI();
+  const { readOnly } = useEnquiryAccess();
   const { data: patients } = usePatients();
   const { can } = useRole();
-  const ui = useUI();
   const session = useSession();
   const by = session?.name ?? "Staff";
   const setStatus = useAction(enquiriesApi.setStatus, (e) => `Status set to ${e.status.toLowerCase()}`);
@@ -31,11 +33,11 @@ export function EnquiryDetailSheet({ enquiry, onClose, onEdit }: { enquiry?: Enq
   const addTask = useAction(enquiriesApi.addTask, "Follow-up added");
   const doneTask = useAction(enquiriesApi.completeTask, "Follow-up marked done");
   const link = useAction(enquiriesApi.linkPatient, "Enquiry linked to patient");
-  const mark = useAction(enquiriesApi.appointmentBooked, "Enquiry marked as appointment booked");
   const mkPatient = useAction(enquiriesApi.createPatientFrom, (p) => `Patient ${p.id} created (demo data)`);
   const [pick, setPick] = useState("");
   const [confirm, setConfirm] = useState<"create" | null>(null);
   const [needPatient, setNeedPatient] = useState(false);
+  useEffect(() => { setNeedPatient(!!askPatient); setPick(""); }, [enquiry?.id, askPatient]);
   const tf = useForm<TaskInput>({ resolver: zodResolver(taskSchema), defaultValues: { due: "", note: "", assigneeId: "" } });
 
   const e = enquiry;
@@ -47,17 +49,8 @@ export function EnquiryDetailSheet({ enquiry, onClose, onEdit }: { enquiry?: Enq
   const matches = useMemo(() => !e || e.patientId ? [] : (patients ?? []).filter((p) => (e.phone && digits(p.phone) === digits(e.phone)) || (e.email && p.email.toLowerCase() === e.email.toLowerCase())), [e, patients]);
   const dupWarn = matches.length > 0;
 
-  const book = () => {
-    if (!e) return;
-    if (!e.patientId) { setNeedPatient(true); return; }
-    const provider = refs?.providers.find((p) => svc?.providerIds.includes(p.id) && p.status === "Active") ?? refs?.providers.find((p) => p.id === patient?.providerId);
-    const locationId = provider?.locationIds[0];
-    onClose();
-    ui.newAppt({
-      patientId: e.patientId, serviceId: e.serviceId ?? "", providerId: provider?.id ?? "", duration: svc?.duration ?? 30,
-      locationId: locationId ?? "", roomId: refs?.rooms.find((r) => r.locationId === locationId)?.id ?? "", notes: `From enquiry ${e.id}`,
-    }, { onCreated: (a) => { mark.run(e.id, a.id, by); } });
-  };
+  const bookEnquiry = useBookEnquiry();
+  const book = () => { if (e && !bookEnquiry(e, onClose)) setNeedPatient(true); };
   const createPatient = async () => {
     if (!e) return;
     const [first, ...rest] = e.name.split(" ");
@@ -68,29 +61,36 @@ export function EnquiryDetailSheet({ enquiry, onClose, onEdit }: { enquiry?: Enq
 
   return (
     <Sheet open={!!e} onOpenChange={(o) => !o && onClose()} width={500} title={e?.name ?? "Enquiry"} description={e ? `${e.id} · received ${fmtDate(e.received, true)}` : undefined}
-      footer={e && <>
+      footer={e && !readOnly && <div className="flex w-full items-center justify-between gap-2">
         <Button variant="secondary" onClick={() => onEdit(e)}><Pencil className="size-4" />Edit</Button>
-        {!closed && <Button variant="secondary" onClick={() => setStatus.run(e.id, "Closed", by)}>Close</Button>}
-        {!closed && <Button variant="secondary" onClick={() => setStatus.run(e.id, "Not converted", by)}>Not converted</Button>}
-        {can("patients") && e.status !== "Appointment booked" && <Button onClick={book}><CalendarPlus className="size-4" />Book appointment</Button>}
-      </>}>
+        <div className="flex items-center gap-2">
+          {!closed && (
+            <Menu>
+              <MenuTrigger asChild><Button variant="secondary">Mark as<ChevronDown className="size-4" aria-hidden /></Button></MenuTrigger>
+              <MenuContent side="top" align="end">
+                <MenuItem onSelect={() => setStatus.run(e.id, "Closed", by)}>Closed</MenuItem>
+                <MenuItem onSelect={() => setStatus.run(e.id, "Not converted", by)}>Not converted</MenuItem>
+              </MenuContent>
+            </Menu>)}
+          {can("patients") && e.status !== "Appointment booked" && <Button onClick={book}><CalendarPlus className="size-4" />Book appointment</Button>}
+        </div>
+      </div>}>
       {!e ? <Skeleton className="h-40" /> : (
         <div className="space-y-5">
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Status"><Select value={e.status} onChange={(x) => setStatus.run(e.id, x.target.value as EnquiryStatus, by)}>{ENQUIRY_STATUSES.map((s) => <option key={s}>{s}</option>)}</Select></Field>
-            <Field label="Assigned to"><Select value={e.assigneeId ?? ""} onChange={(x) => assign.run(e.id, x.target.value, by)}><option value="">Unassigned</option>{staff.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</Select></Field>
+            <Field label="Status"><Select disabled={readOnly} value={e.status} onChange={(x) => (x.target.value === "Appointment booked" ? book() : setStatus.run(e.id, x.target.value as EnquiryStatus, by))}>{ENQUIRY_STATUSES.map((s) => <option key={s}>{s}</option>)}</Select></Field>
+            <Field label="Assigned to"><Select disabled={readOnly} value={e.assigneeId ?? ""} onChange={(x) => assign.run(e.id, x.target.value, by)}><option value="">Unassigned</option>{staff.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</Select></Field>
           </div>
 
           <section><H>Contact</H><dl className="divide-y divide-line">
-            <Row l="Phone">{e.phone ?? <span className="font-normal text-muted">Not given</span>}</Row>
-            <Row l="Email">{e.email ?? <span className="font-normal text-muted">Not given</span>}</Row>
+            <Row l="Phone">{readOnly ? <span className="font-normal text-muted">Hidden (view-only)</span> : e.phone ?? <span className="font-normal text-muted">Not given</span>}</Row>
+            <Row l="Email">{readOnly ? <span className="font-normal text-muted">Hidden (view-only)</span> : e.email ?? <span className="font-normal text-muted">Not given</span>}</Row>
             <Row l="Requested service">{svc?.name ?? <span className="font-normal text-muted">General enquiry</span>}</Row>
             <Row l="Source">{e.source}{e.campaign && <span className="block text-xs font-normal text-muted">{e.campaign} (demo)</span>}</Row>
             <Row l="Received">{fmtDate(e.received, true)}</Row>
-            <Row l="Status"><EnquiryStatusBadge s={e.status} /></Row>
           </dl></section>
 
-          <section><H>Patient record</H>
+          {!readOnly && <section><H>Patient record</H>
             {e.patientId ? (
               <p className="text-[13px]">Linked to <Link className="font-medium text-primary hover:underline" href={`/patients/${e.patientId}`}>{patient ? `${patient.first} ${patient.last}` : e.patientId}</Link> <span className="text-muted">({e.patientId})</span></p>
             ) : (
@@ -103,7 +103,16 @@ export function EnquiryDetailSheet({ enquiry, onClose, onEdit }: { enquiry?: Enq
                 </div>
                 <Button size="sm" variant="ghost" disabled={!can("patients")} onClick={() => canCreate ? setConfirm("create") : toast.info("Add both a phone number and an email to the enquiry first")}><UserPlus className="size-4" />Create new patient (demo)</Button>
               </div>)}
-          </section>
+          </section>}
+
+          {e.appointment && (
+            <section><H>Appointment</H>
+              <div className="rounded-lg border border-line px-3 py-2.5 text-[13px]">
+                <div className="flex items-start justify-between gap-2"><div><p className="font-medium">{refs?.services.find((x) => x.id === e.appointment!.serviceId)?.name ?? "Appointment"} · {fmtDate(e.appointment.date, true)} at {fmtTime(e.appointment.time)}</p><p className="text-xs text-muted">{refs?.providers.find((x) => x.id === e.appointment!.providerId)?.short} · {e.appointment.id}</p></div><StatusBadge status={e.appointment.status} /></div>
+                {!readOnly && <Button size="sm" variant="secondary" className="mt-2" onClick={() => { onClose(); ui.openAppt(e.appointment!.id); }}>View appointment</Button>}
+              </div>
+              {e.bookingLost && <div className="mt-2"><Alert tone="warn" title="This appointment was not kept">It was {e.appointment.status === "cancelled" ? "cancelled" : "missed"}, so the enquiry is open again. Book a new appointment to continue. The history below is kept.</Alert></div>}
+            </section>)}
 
           {e.notes && <section><H>Notes</H><p className="whitespace-pre-wrap text-[13px]">{e.notes}</p></section>}
 
@@ -112,11 +121,11 @@ export function EnquiryDetailSheet({ enquiry, onClose, onEdit }: { enquiry?: Enq
               {e.tasks.length === 0 && <li className="text-[13px] text-muted">No follow-ups planned.</li>}
               {[...e.tasks].sort((a, b) => Number(a.done) - Number(b.done) || a.due.localeCompare(b.due)).map((t) => (
                 <li key={t.id} className="flex items-start gap-2.5 rounded-lg border border-line px-3 py-2">
-                  <button aria-label={t.done ? "Done" : `Mark done: ${t.note}`} disabled={t.done} onClick={() => doneTask.run(e.id, t.id)} className={`mt-0.5 grid size-4 shrink-0 place-items-center rounded border ${t.done ? "border-primary bg-primary text-white" : "border-slate-300 hover:border-primary"}`}>{t.done && <Check className="size-3" strokeWidth={3} />}</button>
+                  <button aria-label={t.done ? "Done" : `Mark done: ${t.note}`} disabled={t.done || readOnly} onClick={() => doneTask.run(e.id, t.id)} className={`mt-0.5 grid size-4 shrink-0 place-items-center rounded border ${t.done ? "border-primary bg-primary text-white" : "border-slate-300 hover:border-primary"}`}>{t.done && <Check className="size-3" strokeWidth={3} />}</button>
                   <div className="min-w-0 flex-1 text-[13px]"><p className={t.done ? "text-muted line-through" : "font-medium"}>{t.note}</p><p className="text-xs text-muted">{!t.done && t.due < TODAY ? <Badge tone="red">Overdue</Badge> : null} Due {fmtDate(t.due, true)}{t.assigneeId ? ` · ${refs?.users.find((u) => u.id === t.assigneeId)?.name ?? ""}` : ""}</p></div>
                 </li>))}
             </ul>
-            {!closed && (
+            {!closed && !readOnly && (
               <form noValidate className="mt-2.5 grid gap-2 sm:grid-cols-[1fr_140px_auto]" onSubmit={tf.handleSubmit(async (d) => { await addTask.run(e.id, d); tf.reset(); })}>
                 <Field label="New follow-up" error={tf.formState.errors.note?.message}><Input placeholder="e.g. Call to offer a consultation" {...tf.register("note")} /></Field>
                 <Field label="Due" error={tf.formState.errors.due?.message}><Input type="date" min={TODAY} {...tf.register("due")} /></Field>

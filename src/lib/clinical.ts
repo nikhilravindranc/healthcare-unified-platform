@@ -1,3 +1,4 @@
+import { applyOverrides, diffOverrides, migrateSnapshot, type Overrides } from "./role-perms";
 import type {
   PatientDoc, FormResponse, TreatmentPlan, PlanStep,
   AuditEntry, Estimate, FormTemplate, InventoryItem, InventoryMove, Invoice, InvoiceLine, PhotoAsset, Payment, PlotPoint, Visit,
@@ -61,31 +62,37 @@ export function saveClinic(t: ClinicType) { try { localStorage.setItem("pms.clin
 
 /* ---------- Roles and permissions ---------- */
 export type Role = "Owner" | "Practice manager" | "Provider" | "Front desk" | "Staff" | "Marketing";
-export const PERMS = [["patients", "Patient data"], ["notes", "Clinical notes"], ["photos", "Photos"], ["financials", "Financials"], ["refunds", "Refunds"], ["inventory", "Inventory"], ["reports", "Reports"], ["exports", "Exports"], ["settings", "Settings"], ["ai", "AI actions"], ["crm", "CRM"], ["booking", "Manage bookings"], ["booking_view", "View bookings"], ["campaigns", "Manage campaigns"], ["insights", "Marketing insights"], ["enquiries", "Enquiries"]] as const;
+export const PERMS = [["patients", "Patient data"], ["notes", "Clinical notes"], ["photos", "Photos"], ["financials", "Financials"], ["refunds", "Refunds"], ["inventory", "Inventory"], ["reports", "Reports"], ["exports", "Exports"], ["settings", "Settings"], ["ai", "AI actions"], ["crm", "CRM"], ["booking", "Manage bookings"], ["booking_view", "View bookings"], ["campaigns", "Manage campaigns"], ["insights", "Marketing insights"], ["enquiries", "Manage enquiries"], ["enquiries_view", "View enquiries (read-only)"], ["config", "Practice configuration"]] as const;
 export type PermKey = (typeof PERMS)[number][0];
-export const ROLE_PERMS: Record<Role, PermKey[]> = {
-  Owner: ["patients", "notes", "photos", "financials", "refunds", "inventory", "reports", "exports", "settings", "ai", "crm", "booking", "booking_view", "campaigns", "insights", "enquiries"],
-  "Practice manager": ["patients", "financials", "refunds", "inventory", "reports", "exports", "settings", "ai", "crm", "booking", "booking_view", "campaigns", "insights", "enquiries"],
-  Provider: ["patients", "notes", "photos", "inventory", "reports", "ai", "booking_view"],
-  "Front desk": ["patients", "financials", "crm", "booking", "booking_view", "enquiries"],
-  Staff: ["patients", "photos", "inventory"],
-  Marketing: ["crm", "campaigns", "insights"],
+const BASE: PermKey[] = ["config"];
+/** Defaults. A person's changes are kept separately (see role-perms.ts) so these can change without losing them. */
+const DEFAULT_ROLE_PERMS: Record<Role, PermKey[]> = {
+  Owner: ["patients", "notes", "photos", "financials", "refunds", "inventory", "reports", "exports", "settings", "ai", "crm", "booking", "booking_view", "campaigns", "insights", "enquiries", "enquiries_view", ...BASE],
+  "Practice manager": ["patients", "financials", "refunds", "inventory", "reports", "exports", "settings", "ai", "crm", "booking", "booking_view", "campaigns", "insights", "enquiries", "enquiries_view", ...BASE],
+  Provider: ["patients", "notes", "photos", "inventory", "reports", "ai", "booking_view", ...BASE],
+  "Front desk": ["patients", "financials", "crm", "booking", "booking_view", "enquiries", "enquiries_view", ...BASE],
+  Staff: ["patients", "photos", "inventory", ...BASE],
+  Marketing: ["crm", "campaigns", "insights", "enquiries_view"],
 };
-/** Perms added after roles were first saved. Merged once into saved roles so nobody has to reconfigure. */
-const PERMS_V2: PermKey[] = ["crm", "booking", "booking_view", "campaigns", "insights", "enquiries"];
-const DEFAULT_ROLE_PERMS: Record<Role, PermKey[]> = structuredClone(ROLE_PERMS);
-try {
-  const saved = JSON.parse(localStorage.getItem("pms.rolePerms") ?? "null");
-  if (saved) {
-    const migrate = localStorage.getItem("pms.rolePermsV") !== "2";
-    (Object.keys(saved) as Role[]).forEach((r) => {
-      if (r === "Owner" || !ROLE_PERMS[r]) return;
-      ROLE_PERMS[r] = migrate ? [...new Set([...saved[r], ...DEFAULT_ROLE_PERMS[r].filter((p) => PERMS_V2.includes(p))])] : saved[r];
-    });
-    if (migrate) { localStorage.setItem("pms.rolePerms", JSON.stringify(ROLE_PERMS)); localStorage.setItem("pms.rolePermsV", "2"); }
-  }
-} catch {}
-export function saveRolePerms() { try { localStorage.setItem("pms.rolePerms", JSON.stringify(ROLE_PERMS)); localStorage.setItem("pms.rolePermsV", "2"); window.dispatchEvent(new Event("pms-clinic")); } catch {} }
+export const ROLE_PERMS: Record<Role, PermKey[]> = structuredClone(DEFAULT_ROLE_PERMS);
+const LOCKED = ["Owner"];
+const OKEY = "pms.rolePermOverrides";
+const PERMS_V1 = ["patients", "notes", "photos", "financials", "refunds", "inventory", "reports", "exports", "settings", "ai"];
+const PERMS_V2 = [...PERMS_V1, "crm", "booking", "booking_view", "campaigns", "insights", "enquiries"];
+function loadRolePerms() {
+  try {
+    let o: Overrides | null = JSON.parse(localStorage.getItem(OKEY) ?? "null");
+    if (!o) {
+      const legacy = JSON.parse(localStorage.getItem("pms.rolePerms") ?? "null");        // older full snapshots, left in place as a backup
+      if (legacy) { o = migrateSnapshot(DEFAULT_ROLE_PERMS, legacy, localStorage.getItem("pms.rolePermsV") === "2" ? PERMS_V2 : PERMS_V1, LOCKED); localStorage.setItem(OKEY, JSON.stringify(o)); }
+    }
+    if (o) Object.assign(ROLE_PERMS, applyOverrides(DEFAULT_ROLE_PERMS, o, LOCKED));
+  } catch {}
+}
+loadRolePerms();
+/** Re-derives ROLE_PERMS from the defaults plus saved overrides (used by tests and after resets). */
+export function resetRolePermsToStored() { Object.assign(ROLE_PERMS, structuredClone(DEFAULT_ROLE_PERMS)); loadRolePerms(); }
+export function saveRolePerms() { try { localStorage.setItem(OKEY, JSON.stringify(diffOverrides(DEFAULT_ROLE_PERMS, ROLE_PERMS, LOCKED))); window.dispatchEvent(new Event("pms-clinic")); } catch {} }
 export function loadRole(): Role { try { return (localStorage.getItem("pms.role") as Role) || "Owner"; } catch { return "Owner"; } }
 export function saveRole(r: Role) { try { localStorage.setItem("pms.role", r); window.dispatchEvent(new Event("pms-clinic")); } catch {} }
 

@@ -2,12 +2,13 @@
  * Enquiries data access. Pages and hooks only talk to `enquiriesApi`,
  * so replacing the mock below with real HTTP calls does not touch any UI code.
  */
-import { api as pmsApi, TODAY } from "@/lib/db";
+import { api as pmsApi, appointments, TODAY } from "@/lib/db";
 import { logAudit } from "@/lib/clinical";
 import type { PatientInput } from "@/lib/schemas";
+import { resolveBooking } from "./booking-state";
 import { enquiries } from "./data";
 import type { EnquiryInput, TaskInput } from "./schemas";
-import type { Enquiry, EnquiryStatus } from "./types";
+import type { Enquiry, EnquiryStatus, LinkedAppointment } from "./types";
 
 const lag = <T,>(v: T, ms = 220) => new Promise<T>((r) => setTimeout(() => r(structuredClone(v)), ms));
 let seq = 2000;
@@ -16,8 +17,14 @@ const find = (id: string) => { const e = enquiries.find((x) => x.id === id); if 
 const note = (e: Enquiry, text: string) => e.history.push({ id: uid("h"), at: TODAY, text });
 const clean = (v: string) => (v ? v : undefined);
 
+const linked = (id: string): LinkedAppointment | undefined => {
+  const a = appointments.find((x) => x.id === id);
+  return a && { id: a.id, date: a.date, time: a.time, status: a.status, providerId: a.providerId, serviceId: a.serviceId };
+};
+
 export const enquiriesApi = {
-  list: () => lag(enquiries),
+  /** Enquiries joined with the live state of their appointment (a real API would return this from the server). */
+  list: () => lag(enquiries.map((e) => resolveBooking(e, linked))),
   async create(i: EnquiryInput, by: string) {
     const e: Enquiry = {
       id: `E-${uid("n").slice(2)}`, name: i.name, phone: clean(i.phone), email: clean(i.email), serviceId: clean(i.serviceId), source: i.source,
@@ -39,6 +46,7 @@ export const enquiriesApi = {
     note(e, `Details edited by ${by}`); return lag(e, 250);
   },
   async setStatus(id: string, status: EnquiryStatus, by: string) {
+    if (status === "Appointment booked") throw new Error("use appointmentBooked to link a real appointment");
     const e = find(id); e.status = status; note(e, `Status set to ${status.toLowerCase()} by ${by}`);
     if (status === "Closed" || status === "Not converted") e.tasks.forEach((t) => (t.done = true));
     logAudit(by, "Changed enquiry status", `${e.id}: ${status}`); return lag(e, 200);
@@ -59,7 +67,12 @@ export const enquiriesApi = {
   async createPatientFrom(id: string, patient: PatientInput, by: string) {
     const p = await pmsApi.createPatient(patient); const e = find(id); e.patientId = p.id; note(e, `Patient ${p.id} created (demo) by ${by}`); return p;
   },
+  /** Links the real appointment record. Rejects unknown appointments or ones for a different patient. */
   async appointmentBooked(id: string, appointmentId: string, by: string) {
-    const e = find(id); e.status = "Appointment booked"; e.appointmentId = appointmentId; e.tasks.forEach((t) => (t.done = true)); note(e, `Appointment ${appointmentId} booked by ${by}`); return lag(e, 100);
+    const e = find(id); const a = appointments.find((x) => x.id === appointmentId);
+    if (!a || (e.patientId && a.patientId !== e.patientId)) throw new Error("appointment does not match this enquiry");
+    if (e.appointmentId && e.appointmentId !== appointmentId) e.previousAppointmentIds = [...(e.previousAppointmentIds ?? []), e.appointmentId];
+    e.status = "Appointment booked"; e.appointmentId = appointmentId; e.patientId = e.patientId ?? a.patientId; e.tasks.forEach((t) => (t.done = true));
+    note(e, `Appointment ${appointmentId} booked by ${by}`); return lag(e, 100);
   },
 };

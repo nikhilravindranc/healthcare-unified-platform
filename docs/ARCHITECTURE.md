@@ -59,21 +59,28 @@ One person may have several enquiries and appointments, or become a patient late
 
 **Enquiries** (`src/modules/enquiries/`)
 - `types.ts`, `schemas.ts` (zod), `data.ts` (48 synthetic enquiries), `api.ts` (the only data-access surface; swap its body for real HTTP calls), `hooks.ts`, plus UI: `enquiry-form.tsx` and `enquiry-detail.tsx`. Routes: `/enquiries`, `/marketing-insights`.
-- Statuses: New, Contacted, Appointment booked, Closed, Not converted.
+- Statuses: New, Contacted, Appointment booked, Closed, Not converted. "Appointment booked" is only reached through the booking flow, never by editing the status alone.
+- Three views of the same data (switch at the top of `/enquiries`, remembered per browser): **List**, **Board** (stage columns, drag between stages, quick buttons) and **Flow** (Source to Stage ribbon diagram with a side panel; `flow-layout.ts` is generic over columns so a third column can be added). Board and Flow share `enquiry-actions.tsx`.
 - Booking uses the existing New appointment panel (prefilled from the enquiry). A new optional `onCreated` callback on `ui.newAppt` marks the enquiry "Appointment booked".
+- **Appointment link.** An enquiry stores the real PMS `appointmentId` (and earlier ones in `previousAppointmentIds`). `enquiriesApi.list()` joins it with the live appointment (`booking-state.ts`): an enquiry counts as "Appointment booked" only while that appointment exists and is not cancelled or a no-show. Otherwise it shows as Contacted again with a "not kept" notice, and its stored history stays, with a derived "was cancelled" entry. The status field alone cannot set "Appointment booked", and `appointmentBooked` rejects an unknown appointment or one for a different patient. The View buttons open that appointment.
+- **Seed data.** Each seeded booked enquiry has a real patient (`P-10400` and up, status New) and a real appointment (`A-E1001` and up, dated around the enquiry, none today). Two of the appointments are cancelled so the reopened state is visible. The PMS demo therefore has 25 patients (12 original plus 13).
 - Patient link: a person picks an existing patient, with phone/email matches only suggested. "Create new patient (demo)" reuses the existing mock `createPatient` after confirmation. No Contact migration was done.
-- Permission `enquiries` (Owner, Practice manager, Front desk). Marketing sees Marketing Insights (aggregate only), Campaigns preview and CRM, not individual enquiries or patients.
-- Saved role permissions are kept. A one-time merge (`pms.rolePermsV` = 2) adds the new default permissions to roles saved earlier.
+- Permissions: `enquiries` (manage: Owner, Practice manager, Front desk) and `enquiries_view` (read-only: also Marketing). Read-only users see the same three views without phone or email, cannot drag cards, edit, assign, book or link patients, and the patient-record section is hidden. `config` (Practice configuration) covers Team, Services, Locations, Forms and Integrations. Everyone except Marketing has it by default, so those pages are blocked for Marketing by menu and by direct URL.
+- **Role permission storage.** Only changes are stored (`pms.rolePermOverrides`: per role `add` and `remove`, see `src/lib/role-perms.ts`). Current permissions are the code defaults plus those overrides, so a default added later reaches every role that did not customize that permission, and custom choices are never overwritten. Older saved full lists (`pms.rolePerms`) are converted once, and permissions that did not exist when they were saved follow the defaults. The old key is left in place as a backup. Frontend demo only, not security.
 
-**Marketing Insights** is computed from the same enquiry data and labelled demo. No ad platform or analytics is connected.
+**Marketing Insights** is computed by `insights.ts` from the same enquiries. "Appointments from enquiries" counts enquiries whose linked appointment exists and was not cancelled or missed. Those that were are shown as a note and counted as open. Labelled demo. No ad platform or analytics is connected.
 
 ## Known limitations
 - Everything is mock data in memory, and permissions and module toggles live in the browser, so none of it is security.
-- The Today dashboard, Reports and Agents do not know about enquiries yet.
+- Reports and Agents do not know about enquiries yet. Today has an "Enquiries to follow up" panel and a "New enquiry" quick action.
 - Enquiry follow-up tasks are separate from patient Follow-ups.
 - Campaigns, Online Bookings and CRM are previews.
-- Marketing still sees practice configuration pages (Team, Services, Locations, Forms) because those had no permission before.
+- Real mouse drag-and-drop was exercised up to dragover with the browser tool, but the tool does not deliver the final drop event, so the drop itself is covered only by synthetic events.
+- Live camera capture is not testable here. Photos were tested with the sample image.
 - Reports keeps its own copy of its line chart. `components/app/charts.tsx` serves the new screens.
+
+## Tests
+`npm test` runs Node's built-in test runner on `tests/*.test.ts` (type stripping needs Node 22.18 or later). They cover the permission-override logic, the appointment join and insights counts, and the Flow layout. UI behavior is checked manually in the browser.
 
 ## Phases
 1. (done) Registry, perms, nav entries, skeleton pages, Contact type + adapter.
