@@ -3,7 +3,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { isOpenStatus } from "@/lib/appointment-rules";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, CalendarCheck, CalendarClock, CalendarPlus, Camera, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Clock, CreditCard, FilePlus2, Hourglass, Inbox, MoreHorizontal, PlayCircle, SlidersHorizontal, UserPlus, X, type LucideIcon } from "lucide-react";
+import { Moon, Sun, Sunrise, AlertTriangle, CalendarCheck, CalendarClock, CalendarPlus, Camera, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Clock, CreditCard, FilePlus2, Hourglass, Inbox, MoreHorizontal, PlayCircle, SlidersHorizontal, UserPlus, X, type LucideIcon } from "lucide-react";
 import { Badge, Button, EmptyState, Menu, MenuContent, MenuItem, MenuTrigger, Panel, PanelHeader, Segmented, Select, SkeletonRows, StatusBadge } from "@/components/ui";
 import { ApptActions } from "@/components/app/bits";
 import { useUI } from "@/components/app/ui-state";
@@ -78,6 +78,17 @@ function Today({ initialTab }: { initialTab?: TodayTab }) {
   const hour = Math.floor(now / 60);
   const greet = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const who = session?.name.startsWith("Dr.") ? `Dr. ${session.name.split(" ").pop()}` : session?.first;
+  const DayIcon = hour < 6 || hour >= 19 ? Moon : hour < 12 ? Sunrise : Sun;
+  /** One line of orientation. It never repeats the counts in the tiles beside it: it names what the counts cannot, such as who has waited longest. */
+  const mine = todayAll.filter((a) => !f.provider || a.providerId === f.provider);
+  const live = mine.filter((a) => a.status !== "cancelled" && a.status !== "no_show");
+  const nextUp = live.filter((a) => isOpenStatus(a.status)).sort((a, b) => a.time.localeCompare(b.time))[0];
+  const longest = waiting.find((w) => mine.some((a) => a.id === w.a.id));
+  const daySentence = live.length === 0 ? "Nothing is booked for today yet. A calm start, or a chance to fill the day."
+    : longest && longest.mins >= 10 ? `${pname(longest.a.patientId)} has been waiting ${longest.mins} minutes. Worth starting there.`
+    : longest ? "Patients are arriving and being seen on time."
+    : !nextUp ? "Everyone has been seen. Well done."
+    : "No one is waiting right now. The day is running smoothly.";
   const fOpen = (fus ?? []).filter((x) => x.status === "Open");
   const overdue = fOpen.filter((x) => x.due < TODAY);
   const cancelled = todayAll.filter((a) => a.status === "cancelled");
@@ -128,26 +139,30 @@ function Today({ initialTab }: { initialTab?: TodayTab }) {
 
   return (
     <div className="relative">
-      {/* A faint brand atmosphere behind the header only. It sits under the content and never reaches the schedule. */}
-      <div aria-hidden className="pointer-events-none absolute -top-6 -z-10 h-64 bg-[linear-gradient(180deg,rgba(220,221,245,0.55)_0%,rgba(191,234,240,0.32)_55%,rgba(242,244,246,0)_100%)] -inset-x-4 md:-inset-x-6 lg:-inset-x-8" />
 
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="text-[24px] font-semibold leading-tight tracking-tight">{greet}, {who}</h1>
-          <p className="mt-0.5 text-sm text-muted">{fmtLong(TODAY)}, 2026<span className="mx-2 text-line" aria-hidden>|</span>{st.clinicName}</p>
+      <section aria-label="Welcome" className="anim-fade relative mb-5 overflow-hidden rounded-2xl border border-[#E3E6F5] bg-[linear-gradient(115deg,#F1EEFB_0%,#E6F1FB_38%,#DFF4F0_72%,#FFF3DC_100%)] px-5 py-5 sm:px-7 sm:py-6">
+        <span aria-hidden className="pointer-events-none absolute -right-14 -top-24 size-64 rounded-full bg-white/55 blur-2xl" />
+        <svg aria-hidden viewBox="0 0 600 120" preserveAspectRatio="none" className="pointer-events-none absolute inset-x-0 bottom-0 h-16 w-full opacity-70"><path d="M0 70 C 90 30, 180 110, 300 70 S 510 30, 600 64 V120 H0 Z" fill="#ffffff" fillOpacity="0.45" /><path d="M0 92 C 110 60, 220 118, 330 90 S 520 66, 600 90 V120 H0 Z" fill="#7ACFC5" fillOpacity="0.18" /></svg>
+        <div className="relative flex flex-wrap items-end justify-between gap-5">
+          <div className="min-w-0 max-w-2xl">
+            <p className="flex items-center gap-2 text-[13px] font-medium text-slate-600"><span className="grid size-8 place-items-center rounded-full bg-white/80 text-[#B7791F] shadow-sm"><DayIcon className="size-4" aria-hidden /></span>{fmtLong(TODAY)}, 2026<span className="text-slate-400" aria-hidden>·</span>{st.clinicName}</p>
+            <h1 className="mt-2 text-[28px] font-semibold leading-tight tracking-tight">{greet}, {who}</h1>
+            <p className="mt-1.5 text-[15px] leading-relaxed text-slate-700" aria-live="polite">{isLoading ? "Getting your day ready…" : daySentence}</p>
+            {!isLoading && nextUp && <button type="button" onClick={() => ui.openAppt(nextUp.id)} className="mt-3 inline-flex max-w-full items-center gap-2 rounded-full bg-white/85 py-1 pl-1 pr-3 text-[13px] shadow-sm ring-1 ring-white transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"><PatientAvatar id={nextUp.patientId} name={pname(nextUp.patientId)} size={26} /><span className="truncate"><span className="text-muted">Next up </span><span className="font-medium">{pname(nextUp.patientId)}</span><span className="text-muted"> · {fmtTime(nextUp.time)}</span></span></button>}
+          </div>
+          <div role="group" aria-label="Today's appointment counts" className="flex flex-wrap gap-2">
+            {summary.map((s) => {
+              const on = tab === "today" && s.key !== "" && sf === s.key;
+              return (
+                <button key={s.label} type="button" aria-pressed={on} onClick={() => pickSummary(s.key)} aria-label={`${s.label}: ${isLoading ? "loading" : s.n}. ${s.key ? `Show only ${SF_LABEL[s.key as SFKey].toLowerCase()} in the schedule` : "Show the full day"}`}
+                  className={cn("flex items-center gap-2.5 rounded-lg border bg-white/90 px-3 py-2 text-left shadow-sm transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40", on ? "border-primary ring-1 ring-primary/20" : "border-white")}>
+                  <span className={cn("grid size-8 place-items-center rounded-lg", s.chip)}><s.icon className="size-4" aria-hidden /></span>
+                  <span><span className="block text-lg font-semibold leading-none tabular-nums">{isLoading ? "–" : s.n}</span><span className="mt-0.5 block text-[11px] text-muted">{s.label}</span></span>
+                </button>);
+            })}
+          </div>
         </div>
-        <div role="group" aria-label="Today's appointment counts" className="flex flex-wrap gap-2">
-          {summary.map((s) => {
-            const on = tab === "today" && s.key !== "" && sf === s.key;
-            return (
-              <button key={s.label} type="button" aria-pressed={on} onClick={() => pickSummary(s.key)} aria-label={`${s.label}: ${isLoading ? "loading" : s.n}. ${s.key ? `Show only ${SF_LABEL[s.key as SFKey].toLowerCase()} in the schedule` : "Show the full day"}`}
-                className={cn("flex items-center gap-2.5 rounded-lg border bg-white px-3 py-2 text-left transition-colors hover:bg-cloud focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40", on ? "border-primary ring-1 ring-primary/20" : "border-line")}>
-                <span className={cn("grid size-8 place-items-center rounded-lg", s.chip)}><s.icon className="size-4" aria-hidden /></span>
-                <span><span className="block text-lg font-semibold leading-none tabular-nums">{isLoading ? "–" : s.n}</span><span className="mt-0.5 block text-[11px] text-muted">{s.label}</span></span>
-              </button>);
-          })}
-        </div>
-      </div>
+      </section>
 
       <GettingStarted />
 

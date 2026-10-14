@@ -160,3 +160,24 @@ for (const width of [375, 768]) {
     }
   });
 }
+
+test("Today opens with a welcome banner that sums up the day from the records and names who is next", async ({ page }) => {
+  await openAs(page, "/overview");
+  const banner = page.getByRole("region", { name: "Welcome" });
+  await expect(banner.getByRole("heading", { level: 1 })).toContainText(/Good (morning|afternoon|evening), /);
+  await expect(banner.locator("p[aria-live=polite]")).toContainText(/waiting \d+ minutes|arriving|waiting right now|Everyone has been seen|Nothing is booked/);
+  await expect(banner.locator("p[aria-live=polite]")).not.toContainText(/\d+ appointments?/);   // the counts live in the tiles only
+  await expect(banner.getByRole("button", { name: /^Next up|Next up/ })).toBeVisible();
+  await expect(banner.getByRole("group", { name: "Today's appointment counts" })).toBeVisible();
+  await banner.getByRole("button", { name: /^Waiting:/ }).click();
+  await expect(banner.getByRole("button", { name: /^Waiting:/ })).toHaveAttribute("aria-pressed", "true");
+});
+
+for (const width of [375, 768]) {
+  test(`Today banner has no horizontal scroll at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await openAs(page, "/overview");
+    await page.waitForLoadState("networkidle");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+  });
+}

@@ -83,6 +83,12 @@ Full model: `docs/IDENTITY_DECISIONS.md` section 10.
 2. Provider availability, time off, practice break and closed dates should be structured data, not the free text the demo parses. Room-to-service suitability is not modelled yet.
 3. Agent findings should keep `rule`, `recorded facts` and source record ids, so "why this appeared" can be reproduced and audited.
 
+### 11. Appointments, activities and insights
+1. Appointment: keep booking status and attendance status as separate fields if you can. The demo derives both from one status and says so where it cannot tell (for example, whether an attended booking was ever confirmed). Log booking creation, confirmation, arrival and visit association as events with a time and actor. The demo logs only cancellation, no-show, rescheduling and online booking.
+2. Activity: one interaction and task entity (type, subject, linked contact, patient or enquiry, owner, date and time, due date, status, outcome, optional follow-up id). Calls need duration and direction from telephony if that is ever integrated. The demo has none.
+3. Analytics and Reports: compute on the server from the same definitions in `src/lib/insights.ts` (each names its driving date). Filters, definitions and the "not enough data" rule should be kept. Capacity needs structured working hours, breaks and time off, not text. Campaign delivery, response, time to contact and cost need real tracking before they can be shown.
+4. Reports: serve each report as a paginated, filterable, sortable query with the same columns as `src/lib/reports.ts`, and generate the CSV on the server so an export is exactly the filtered result. Audit every export (who, which report, which filters, how many rows). Authorization for who may read an analytic, open a report or export it is server work, and CSV cells that start with =, +, - or @ must be neutralised as the demo does.
+
 ## What to send back
 
 1. Confirm each rule above is buildable, or say what you would change and why.

@@ -150,3 +150,14 @@ Not done, by choice of scope: appointments, campaigns, online bookings, and prac
 - Reports: illustrative charts stay until the seed has real history.
 - Calendar: no arrow-key movement between events, and no keyboard way to create an appointment in an empty slot other than the New appointment button.
 - Reorder level and stock movements are demo-session only; nothing persists.
+
+## Navigation, Appointments, Activities, Analytics and Reports (14 Oct 2026)
+- **Sidebar** rebuilt to the agreed structure. Insights has two destinations, Analytics and Reports. Front desk and Marketing Insights are not in the menu. Playwright checks the exact group and link order and that every destination opens with the right item marked current.
+- **Appointments** list and detail: done, unit-tested (`appointment-view.test.ts`) and browser-tested.
+- **Activities**: done on existing records (calls from the communication log, enquiry tasks, an in-memory list for other tasks and meetings). Unit-tested (`activities.test.ts`) and browser-tested.
+- **Analytics** (`/analytics`): landing, category tabs and eight views done, unit-tested (`insights.test.ts`) and browser-tested. Marketing Insights is a view under Acquisition. Inventory analytics is marked not available, with the reason.
+- **Reports** (`/reports`): catalogue and eleven record reports done (appointments, patients, enquiries, visits, follow-ups, services, invoices, payments and refunds, campaigns), with filters, search, sorting, links and CSV export. Unit-tested (`reports.test.ts`, including agreement with Analytics) and browser-tested (`e2e/reports.spec.ts`).
+- **Old links**: `/insights`, `/insights/[slug]` and `/marketing-insights` redirect to Analytics. The previous `/reports` page (record counts, illustrative charts, billing and inventory panels) was replaced. Its record counts live in Analytics and Reports, its export became the report CSVs, and the illustrative charts were removed.
+- **Billing**: a read-only invoice list at `/billing`.
+- **Not done:** campaign delivery and response (simulated, so not tracked); time to contact and time to booking (dates only); revenue by location; call duration; Calendar arrow-key movement; a visits-by-provider report beyond the Visits report; saved or scheduled reports.
+- **Tested, not claimed:** no screen-reader check, other browsers, or full accessibility audit.

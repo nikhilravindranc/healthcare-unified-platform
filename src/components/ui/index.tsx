@@ -1,5 +1,6 @@
 "use client";
 import * as React from "react";
+import Link from "next/link";
 import { Dialog as RDialog, DropdownMenu as RMenu, Tabs as RTabs } from "radix-ui";
 import { Check, Loader2, X, AlertCircle, CheckCircle2, Info, TriangleAlert, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -304,3 +305,19 @@ export function Pagination({ page, pages, onPage, total }: { page: number; pages
 }
 export const Th = ({ className, ...p }: React.ThHTMLAttributes<HTMLTableCellElement>) => <th className={cn("px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-muted", className)} {...p} />;
 export const Td = ({ className, ...p }: React.TdHTMLAttributes<HTMLTableCellElement>) => <td className={cn("px-4 py-3 align-middle text-[13px]", className)} {...p} />;
+
+/** A quiet page title for working screens: no gradient, a short description, optional breadcrumb and actions. */
+export function PageTitle({ title, description, actions, crumbs }: { title: string; description?: React.ReactNode; actions?: React.ReactNode; crumbs?: { label: string; href?: string }[] }) {
+  return (
+    <header className="mb-5">
+      {crumbs && crumbs.length > 0 && (
+        <nav aria-label="Breadcrumb" className="mb-1.5"><ol className="flex flex-wrap items-center gap-1.5 text-[13px] text-muted">
+          {crumbs.map((c, i) => <li key={c.label} className="flex items-center gap-1.5">{i > 0 && <span aria-hidden>/</span>}{c.href ? <Link href={c.href} className="hover:text-primary hover:underline">{c.label}</Link> : <span aria-current="page" className="text-ink">{c.label}</span>}</li>)}
+        </ol></nav>)}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0"><h1 className="text-[28px] font-semibold leading-tight tracking-tight text-ink">{title}</h1>{description && <p className="mt-1 max-w-3xl text-[14px] text-slate-600">{description}</p>}</div>
+        {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      </div>
+    </header>
+  );
+}

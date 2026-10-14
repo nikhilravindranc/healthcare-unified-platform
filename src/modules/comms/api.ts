@@ -23,7 +23,7 @@ export const commsApi = {
   /** Demo send. Refuses when the eligibility rule fails, so the rule cannot be bypassed by the UI. */
   async send(i: ComposeInput, to: Recipient, by: string) {
     if (i.channel === "call") {
-      const m: Message = { id: `m-new-${++seq}`, channel: "call", direction: i.direction, status: "logged", purpose: "service", body: i.body, at: TODAY, by, enquiryId: i.enquiryId, patientId: i.patientId, appointmentId: i.appointmentId };
+      const m: Message = { id: `m-new-${++seq}`, channel: "call", direction: i.direction, status: "logged", purpose: "service", subject: i.subject || undefined, body: i.body, at: TODAY, by, enquiryId: i.enquiryId, patientId: i.patientId, appointmentId: i.appointmentId };
       messages.unshift(m); return lag(m);
     }
     const check = checkEligibility({ channel: i.channel, purpose: i.purpose, reach: to.reach, consent: to.consent });

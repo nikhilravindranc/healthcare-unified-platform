@@ -88,13 +88,19 @@ test("a failed save shows an error, keeps the dialog and input, and does not cla
   await expect(dialog.getByLabel("Reason")).toHaveValue("Check healing");
 });
 
-test("Reports separate real record counts from illustrative figures", async ({ page }) => {
+test("Reports is a record catalogue, Analytics holds the trends, and old Insights links redirect safely", async ({ page }) => {
   await openAs(page, "/reports");
-  await expect(page.getByRole("heading", { name: "From the records in this app" })).toBeVisible();
-  await expect(page.getByText("The sections below are illustrative demo figures")).toBeVisible();
-  for (const title of ["Appointment trend", "No-show trend", "Provider utilization", "Service volume", "Provider activity", "Patient activity"]) {
-    await expect(page.locator("section", { has: page.getByRole("heading", { name: title }) }).getByText("Illustrative")).toBeVisible();
-  }
+  await expect(page.getByRole("heading", { level: 1, name: "Reports" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Appointments Appointments/ }).or(page.getByRole("link", { name: /Every appointment record/ }))).toBeVisible();
+  await page.goto("/marketing-insights");
+  await expect(page).toHaveURL(/\/analytics\/marketing/);
+  await page.goto("/insights");
+  await expect(page).toHaveURL(/\/analytics$/);
+  await page.goto("/insights/appointments");
+  await expect(page).toHaveURL(/\/analytics\/appointments/);
+  await page.goto("/analytics");
+  await expect(page.getByRole("heading", { name: "Clinic overview", level: 2 })).toBeVisible();
+  await expect(page.locator("body")).not.toContainText("Illustrative");        // no invented trends anywhere in Analytics
 });
 
 test("consent is never shown as granted, denied or withdrawn without supporting data", async ({ page }) => {
@@ -126,7 +132,7 @@ test("photo consent is shown as not recorded when nobody recorded it, never as g
 });
 
 for (const width of [375, 768, 1280]) {
-  for (const [name, path] of [["patient detail", "/patients/P-10248"], ["patient Appointments tab", "/patients/P-10248?tab=appointments"], ["patient Care history", "/patients/P-10248?tab=history"], ["patient Documents tab", "/patients/P-10248?tab=docs"], ["Visits", "/visits"], ["Follow-ups", "/follow-ups"], ["Reports", "/reports"], ["Patients", "/patients"]] as const) {
+  for (const [name, path] of [["patient detail", "/patients/P-10248"], ["patient Appointments tab", "/patients/P-10248?tab=appointments"], ["patient Care history", "/patients/P-10248?tab=history"], ["patient Documents tab", "/patients/P-10248?tab=docs"], ["Visits", "/visits"], ["Follow-ups", "/follow-ups"], ["Analytics", "/analytics"], ["Appointment analytics", "/analytics/appointments"], ["Reports", "/reports"], ["Appointments report", "/reports/appointments"], ["Patients", "/patients"]] as const) {
     test(`${name} has no horizontal page scroll at ${width}px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
       await openAs(page, path);

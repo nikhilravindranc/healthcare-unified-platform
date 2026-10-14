@@ -23,7 +23,7 @@ export const MODULES: ModuleDef[] = [
 export interface GrowthNavItem { href: string; label: string; icon: LucideIcon; perms: PermKey[]; module?: ModuleDef["id"] }
 /** Healthcare-facing "Growth & Engagement" entries. They reuse the module routes where one exists. */
 export const GROWTH_NAV: GrowthNavItem[] = [
-  { href: "/marketing-insights", label: "Marketing Insights", icon: LineChart, perms: ["insights"] },
+  { href: "/analytics/marketing", label: "Marketing Insights", icon: LineChart, perms: ["insights"] },
   { href: "/campaigns", label: "Campaigns", icon: Megaphone, perms: ["campaigns", "insights"], module: "campaigns" },
   { href: "/booking", label: "Online Bookings", icon: CalendarCheck, perms: ["booking", "booking_view"], module: "booking" },
 ];

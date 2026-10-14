@@ -132,14 +132,14 @@ export const agents: AgentDef[] = [
   {
     id: "insights", name: "Practice Insights Agent",
     description: "Explains appointment volume, provider activity, cancellations, no-shows and gaps in plain language.",
-    actions: ["Open reports"],
+    actions: ["Open analytics"],
     findings: () => {
       const t = appointments.filter((a) => a.date === TODAY);
       const done = t.filter((a) => a.status === "completed").length;
       const busiest = providers.map((p) => ({ p, n: t.filter((a) => a.providerId === p.id).length })).sort((a, b) => b.n - a.n)[0];
       return [
-        { id: "i1", title: "Today's schedule", detail: `${t.length} appointments booked, ${done} completed so far. ${busiest.p.short} has the busiest day (${busiest.n}).`, action: "review", href: "/reports", why: { rule: "Counts today's appointment records by status and by provider.", recorded: `${t.length} appointment records dated today.`, sources: [{ label: "Calendar", href: "/calendar" }] } },
-        { id: "i2", title: "Cancellations and no-shows", detail: `${t.filter((a) => a.status === "cancelled").length} cancellation and ${t.filter((a) => a.status === "no_show").length} no-show today.`, action: "review", href: "/reports", why: { rule: "Counts today's appointment records with the status Cancelled or No-show.", recorded: "Status values on today's appointment records.", sources: [{ label: "Calendar", href: "/calendar" }] } },
+        { id: "i1", title: "Today's schedule", detail: `${t.length} appointments booked, ${done} completed so far. ${busiest.p.short} has the busiest day (${busiest.n}).`, action: "review", href: "/analytics/appointments", why: { rule: "Counts today's appointment records by status and by provider.", recorded: `${t.length} appointment records dated today.`, sources: [{ label: "Calendar", href: "/calendar" }] } },
+        { id: "i2", title: "Cancellations and no-shows", detail: `${t.filter((a) => a.status === "cancelled").length} cancellation and ${t.filter((a) => a.status === "no_show").length} no-show today.`, action: "review", href: "/analytics/appointments", why: { rule: "Counts today's appointment records with the status Cancelled or No-show.", recorded: "Status values on today's appointment records.", sources: [{ label: "Calendar", href: "/calendar" }] } },
         { id: "i3", title: "Schedule gaps", detail: `${scheduleGaps().length} gaps of 45 minutes or more remain today, the largest on ${getProvider(scheduleGaps().sort((a, b) => b.mins - a.mins)[0]?.providerId ?? "pat")?.short}'s schedule.`, action: "review", href: "/calendar", why: { rule: "Counts gaps of 45 minutes or more in a fixed 9:00 AM to 5:00 PM window.", recorded: `${scheduleGaps().length} gaps found.`, limits: "The window is fixed and ignores provider hours, breaks and time off.", sources: [{ label: "Calendar", href: "/calendar" }] } },
         { id: "i4", title: "Follow-ups", detail: `${followUpBuckets().overdue.length} overdue and ${followUpBuckets().today.length} due today.`, action: "review", href: "/follow-ups", why: { rule: "Counts Open follow-ups by due date against today.", recorded: "Due dates and statuses on follow-up records.", sources: [{ label: "Follow-ups", href: "/follow-ups" }] } },
       ];

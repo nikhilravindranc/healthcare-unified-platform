@@ -54,7 +54,7 @@ function Agents() {
     if (f.action === "reschedule" && f.apptId) out.unshift({ label: "Reschedule", primary: true, run: () => ui.openAppt(f.apptId!) });
     if (f.action === "open-appt" && f.apptId) out.unshift({ label: "Open appointment", primary: true, run: () => ui.openAppt(f.apptId!) });
     if (agent?.id === "prep" && f.apptId) out.unshift({ label: prepFor === f.id ? "Hide summary" : "Prepare visit", primary: true, run: () => setPrepFor(prepFor === f.id ? null : f.id) });
-    if (f.href) out.unshift({ label: f.href === "/calendar" ? "Review schedule" : "Open reports", primary: true, run: () => router.push(f.href!) });
+    if (f.href) out.unshift({ label: f.href === "/calendar" ? "Review schedule" : "Open analytics", primary: true, run: () => router.push(f.href!) });
     return out;
   };
   const runNow = async (id: string, name: string, summary: string) => {

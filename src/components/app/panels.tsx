@@ -123,6 +123,7 @@ export function AppointmentPanel({ id, onClose }: { id: string | null; onClose: 
                 <ul className="space-y-1">{[...a.events].reverse().map((ev, i) => <li key={i}>{ev.text}<span className="ml-1.5 text-xs text-muted">{fmtDate(ev.at, true)}</span></li>)}</ul></div>
             )}
             <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="secondary" onClick={() => { onClose(); router.push(`/appointments/${a.id}`); }}>Open full page</Button>
               <Button size="sm" variant="secondary" onClick={() => { onClose(); router.push(`/patients/${p.id}`); }}>Open patient</Button>
               {fromEnquiry && <Button size="sm" variant="secondary" onClick={() => { onClose(); router.push(`/enquiries?open=${fromEnquiry.id}`); }}>Open enquiry</Button>}
               {st !== "completed" && st !== "cancelled" && st !== "no_show" && <Button size="sm" variant="soft" onClick={() => { onClose(); ui.evi({ prep: { patientId: p.id, apptId: a.id } }); }}>Prepare this visit</Button>}

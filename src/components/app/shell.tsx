@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   BarChart3, Bell, CalendarDays, ChevronsLeft, ChevronsRight, HelpCircle, LayoutGrid,
   Layers, LogOut, MapPin, MoreHorizontal, Plus, Repeat, Search, Settings, Sparkles, Stethoscope, UserRound, Users,
-  Inbox, CalendarPlus, UserPlus, FilePlus2, BellPlus, Bot, Package, FileText, ChevronDown, ShieldCheck, ClipboardCheck, Contact, CalendarCheck, Megaphone, LineChart, type LucideIcon,
+  Inbox, CalendarPlus, UserPlus, FilePlus2, BellPlus, Bot, Package, FileText, ChevronDown, ShieldCheck, Contact, CalendarCheck, Megaphone, LineChart, Activity as ActivityIcon, CalendarClock, ReceiptText, type LucideIcon,
 } from "lucide-react";
 import { Avatar, Logo, Menu, MenuContent, MenuItem, MenuLabel, MenuSep, MenuTrigger, Skeleton } from "@/components/ui";
 import { auth, useSession } from "@/lib/auth";
@@ -17,7 +17,6 @@ import { cn } from "@/lib/utils";
 import { UICtx, type EviOpen, type UIState } from "./ui-state";
 import { AppointmentPanel, NewAppointmentPanel, NewFollowUpPanel, NewPatientPanel, NewVisitDialog } from "./panels";
 import { EviDialog } from "./evi";
-import { EviLauncher } from "./evi-launcher";
 import { SearchDialog } from "./search";
 import { GuidePanel } from "./guide";
 import { CheckoutDialog } from "./checkout";
@@ -26,33 +25,44 @@ import { Denied } from "@/components/patient/shared";
 import { moduleEnabled, type ModuleDef } from "@/platform/modules";
 import { useSettings } from "@/lib/settings";
 
-const CLINICAL = ["/overview", "/calendar", "/patients", "/visits", "/follow-ups", "/agents", "/front-desk"];
+const CLINICAL = ["/overview", "/calendar", "/appointments", "/activities", "/patients", "/visits", "/follow-ups", "/agents", "/front-desk"];
 type NavItem = { href: string; label: string; icon: LucideIcon; perm?: PermKey | PermKey[]; module?: ModuleDef["id"] };
-/** The sidebar follows the clinic's day: running the clinic, then winning patients, then running the practice. */
+/** The sidebar follows the clinic's day: run the clinic, win patients, keep them engaged, understand it, then run the practice. */
 const CLINIC: NavItem[] = [
   { href: "/overview", label: "Today", icon: LayoutGrid, perm: "patients" },
   { href: "/calendar", label: "Calendar", icon: CalendarDays, perm: "patients" },
-  { href: "/front-desk", label: "Front desk", icon: ClipboardCheck, perm: "patients" },
+  { href: "/appointments", label: "Appointments", icon: CalendarClock, perm: "patients" },
   { href: "/visits", label: "Visits", icon: Stethoscope, perm: "patients" },
   { href: "/patients", label: "Patients", icon: Users, perm: "patients" },
+  { href: "/activities", label: "Activities", icon: ActivityIcon, perm: "patients" },
   { href: "/follow-ups", label: "Follow-ups", icon: Repeat, perm: "patients" },
 ];
 const ACQUISITION: NavItem[] = [
   { href: "/enquiries", label: "Enquiries", icon: Inbox, perm: ["enquiries", "enquiries_view"] },
   { href: "/crm", label: "Contacts", icon: Contact, perm: "crm", module: "crm" },
+];
+const ENGAGEMENT: NavItem[] = [
   { href: "/booking", label: "Online booking", icon: CalendarCheck, perm: ["booking", "booking_view"], module: "booking" },
   { href: "/campaigns", label: "Campaigns", icon: Megaphone, perm: ["campaigns", "insights"], module: "campaigns" },
-  /** Not in the proposed list, but kept so Marketing Insights stays reachable (it is the Marketing role's landing page). */
-  { href: "/marketing-insights", label: "Marketing insights", icon: LineChart, perm: "insights" },
 ];
-const PRACTICE: NavItem[] = [
+/** Two destinations: Analytics (trends, with Marketing Insights inside it) and Reports (the records behind them). */
+const INSIGHTS_NAV: NavItem[] = [
+  { href: "/analytics", label: "Analytics", icon: LineChart, perm: ["reports", "insights"] },
   { href: "/reports", label: "Reports", icon: BarChart3, perm: "reports" },
-  { href: "/practice/team", label: "Team", icon: UserRound, perm: "config" },
-  { href: "/practice/services", label: "Services & treatments", icon: Layers, perm: "config" },
-  { href: "/practice/inventory", label: "Inventory", icon: Package, perm: "inventory" },
-  { href: "/practice/locations", label: "Locations & rooms", icon: MapPin, perm: "config" },
-  { href: "/practice/forms", label: "Forms & documents", icon: FileText, perm: "config" },
 ];
+const PEOPLE: NavItem[] = [
+  { href: "/practice/team", label: "Team & providers", icon: UserRound, perm: "config" },
+  { href: "/practice/services", label: "Services & treatments", icon: Layers, perm: "config" },
+];
+const FACILITIES: NavItem[] = [
+  { href: "/practice/locations", label: "Locations & rooms", icon: MapPin, perm: "config" },
+  { href: "/practice/inventory", label: "Inventory", icon: Package, perm: "inventory" },
+];
+const ADMIN: NavItem[] = [
+  { href: "/practice/forms", label: "Forms & documents", icon: FileText, perm: "config" },
+  { href: "/billing", label: "Billing", icon: ReceiptText, perm: "financials" },
+];
+const PRACTICE: NavItem[] = [...PEOPLE, ...FACILITIES, ...ADMIN];
 
 function NavLink({ item, collapsed, active }: { item: NavItem; collapsed: boolean; active: boolean }) {
   return (
@@ -92,7 +102,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const markRead = useAction(api.markNotifications);
 
   useEffect(() => { if (session === null) router.replace("/sign-in"); }, [session, router]);
-  useEffect(() => { if (session && !can("patients") && path === "/overview") router.replace(can("insights") ? "/marketing-insights" : can("enquiries") ? "/enquiries" : "/practice/team"); }, [session, can, path, router]);
+  useEffect(() => { if (session && !can("patients") && path === "/overview") router.replace(can("insights") ? "/analytics/marketing" : can("enquiries") ? "/enquiries" : "/practice/team"); }, [session, can, path, router]);
   useEffect(() => { if (new URLSearchParams(window.location.search).get("guide")) { setGuideOpen(true); window.history.replaceState(null, "", window.location.pathname); } }, []);
   useEffect(() => { try { const v = localStorage.getItem("pms.sidebar"); setCollapsed(v ? v === "1" : window.innerWidth < 1024); } catch {} }, []);
 
@@ -119,8 +129,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="p-8" role="status" aria-label="Loading"><Skeleton className="h-8 w-48" /><Skeleton className="mt-6 h-64 w-full" /></div>
   );
 
-  const groups = [{ label: "Clinic", items: CLINIC.filter(allowed) }, { label: "Patient acquisition", items: ACQUISITION.filter(allowed) }, { label: "Practice management", items: PRACTICE.filter(allowed) }].filter((g) => g.items.length > 0);
-  const modules = ACQUISITION.filter(allowed);
+  const groups: { label: string; subs: { label?: string; items: NavItem[] }[] }[] = [
+    { label: "Clinic", subs: [{ items: CLINIC.filter(allowed) }] },
+    { label: "Patient Acquisition", subs: [{ items: ACQUISITION.filter(allowed) }] },
+    { label: "Patient Engagement", subs: [{ items: ENGAGEMENT.filter(allowed) }] },
+    { label: "Insights", subs: [{ items: INSIGHTS_NAV.filter(allowed) }] },
+    { label: "Practice Management", subs: [{ label: "People & Services", items: PEOPLE.filter(allowed) }, { label: "Facilities & Resources", items: FACILITIES.filter(allowed) }, { label: "Administration", items: ADMIN.filter(allowed) }] },
+  ].map((g) => ({ ...g, subs: g.subs.filter((x) => x.items.length > 0) })).filter((g) => g.subs.length > 0);
+  const modules = [...ACQUISITION, ...ENGAGEMENT, ...INSIGHTS_NAV].filter(allowed);
   /** Patient-facing pages need the "patients" permission, so roles like Marketing never reach patient records via a URL. */
   const clinicalBlocked = !can("patients") && CLINICAL.some((c) => path === c || path.startsWith(c + "/"));
   const unread = notes?.filter((n) => !n.read).length ?? 0;
@@ -142,10 +158,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </button>
         <nav aria-label="Primary" className="scroll-thin flex-1 space-y-0.5 overflow-y-auto p-3">
           {groups.map((g, gi) => (
-            <div key={g.label} className="space-y-0.5">
-              <p className={cn("px-2.5 pb-1 text-[11px] font-medium uppercase tracking-wider text-muted", gi > 0 ? "pt-5" : "", collapsed ? "sr-only" : "")}>{g.label}</p>
-              {gi > 0 && <div className={cn("my-3 h-px bg-line", collapsed ? "" : "hidden")} />}
-              {g.items.map((i) => <NavLink key={i.href} item={i} collapsed={collapsed} active={isActive(i.href)} />)}
+            <div key={g.label} role="group" aria-label={g.label} className="space-y-0.5">
+              <p className={cn("px-2.5 pb-1 text-[11px] font-medium uppercase tracking-wider text-muted", gi > 0 ? "pt-4" : "", collapsed ? "sr-only" : "")}>{g.label}</p>
+              {gi > 0 && <div className={cn("my-2 h-px bg-line", collapsed ? "" : "hidden")} />}
+              {g.subs.map((sub, si) => (
+                <div key={sub.label ?? si} className="space-y-0.5">
+                  {sub.label && <p className={cn("px-2.5 pb-0.5 pt-2 text-[11px] font-medium text-slate-400", collapsed ? "sr-only" : "")}>{sub.label}</p>}
+                  {sub.items.map((i) => <NavLink key={i.href} item={i} collapsed={collapsed} active={isActive(i.href)} />)}
+                </div>))}
             </div>
           ))}
         </nav>
@@ -220,7 +240,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Mobile bottom navigation */}
       <nav aria-label="Mobile" className="fixed inset-x-0 bottom-0 z-30 flex border-t border-line bg-white pb-[env(safe-area-inset-bottom)] md:hidden">
-        {(can("patients") ? [{ href: "/overview", label: "Today", icon: LayoutGrid }, { href: "/calendar", label: "Calendar", icon: CalendarDays }, { href: "/patients", label: "Patients", icon: Users }, { href: "/visits", label: "Visits", icon: Stethoscope }] : modules.slice(0, 1)).map((i) => (
+        {(can("patients") ? [{ href: "/overview", label: "Today", icon: LayoutGrid }, { href: "/calendar", label: "Calendar", icon: CalendarDays }, { href: "/appointments", label: "Appts", icon: CalendarClock }, { href: "/patients", label: "Patients", icon: Users }] : modules.slice(0, 1)).map((i) => (
           <Link key={i.href} href={i.href} aria-current={isActive(i.href) ? "page" : undefined} className={cn("flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium", isActive(i.href) ? "text-primary" : "text-muted")}>
             <i.icon className="size-5" strokeWidth={1.8} aria-hidden />{i.label}
           </Link>
@@ -228,7 +248,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <Menu>
           <MenuTrigger asChild><button className="flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium text-muted"><MoreHorizontal className="size-5" aria-hidden />More</button></MenuTrigger>
           <MenuContent side="top" align="end">
-            {[...(can("patients") ? [{ href: "/front-desk", label: "Front desk", icon: ClipboardCheck }, { href: "/follow-ups", label: "Follow-ups", icon: Repeat }, { href: "/agents", label: "EVI agents", icon: Bot }] : []), ...modules, ...PRACTICE.filter(allowed), { href: "/practice/settings", label: "Settings", icon: Settings }].map((i) => (
+            {[...(can("patients") ? [{ href: "/visits", label: "Visits", icon: Stethoscope }, { href: "/activities", label: "Activities", icon: ActivityIcon }, { href: "/follow-ups", label: "Follow-ups", icon: Repeat }, { href: "/agents", label: "EVI agents", icon: Bot }] : []), ...modules, ...PRACTICE.filter(allowed), { href: "/practice/settings", label: "Settings", icon: Settings }].map((i) => (
               <MenuItem key={i.href} onSelect={() => router.push(i.href)}><i.icon className="size-4 text-muted" />{i.label}</MenuItem>
             ))}
           </MenuContent>
@@ -240,7 +260,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <NewPatientPanel open={newPatient} onClose={() => setNewPatient(false)} />
       <NewFollowUpPanel open={newFu.open} prefill={newFu.prefill} onClose={() => setNewFu({ open: false })} />
       <NewVisitDialog open={newVisit.open} patientId={newVisit.patientId} onClose={() => setNewVisit({ open: false })} />
-      {!evi.open && <EviLauncher onOpen={() => ui.evi()} />}
       <EviDialog open={evi.open} initial={evi.init} onClose={() => setEvi((e) => ({ ...e, open: false }))} />
       <CheckoutDialog apptId={checkoutId} onClose={() => setCheckoutId(null)} />
       <GuidePanel open={guideOpen} onClose={() => setGuideOpen(false)} />
