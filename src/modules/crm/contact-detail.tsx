@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CalendarCheck, ExternalLink, UserRound } from "lucide-react";
 import { Alert, Badge, Button, Sheet, StatusBadge } from "@/components/ui";
@@ -17,7 +18,7 @@ const Hidden = () => <span className="font-normal text-muted">Hidden for your ro
 const Missing = ({ children }: { children: React.ReactNode }) => <span className="font-normal text-muted">{children}</span>;
 
 /** Read-only view of one contact. All records open in their own modules; nothing is created or changed here. */
-export function ContactDetailSheet({ contact: c, access, onClose }: { contact?: CrmContact; access: ContactAccess; onClose: () => void }) {
+export function ContactDetailSheet({ contact: c, access, onClose, page }: { /** Render as a full page instead of a side panel. */ page?: boolean; contact?: CrmContact; access: ContactAccess; onClose: () => void }) {
   const { data: refs } = useRefs();
   const router = useRouter();
   const ui = useUI();
@@ -27,9 +28,11 @@ export function ContactDetailSheet({ contact: c, access, onClose }: { contact?: 
   const go = (href: string) => { onClose(); router.push(href); };
   const consentLabel = c ? CONSENT_LABEL[c.consent.status] : "";
 
-  return (
-    <Sheet open={!!c} onOpenChange={(o) => !o && onClose()} width={500} title={c?.name ?? "Contact"}
-      description={c ? (c.kind === "patient" ? `Registered patient${c.patientId ? ` · ${c.patientId}` : ""}` : "Enquiry only · not a registered patient") : undefined}>
+  const desc = c ? (c.kind === "patient" ? `Registered patient${c.patientId ? ` · ${c.patientId}` : ""}` : "Enquiry only · not a registered patient") : undefined;
+  /** The page address uses the patient or enquiry record id, never the display key. A role that cannot see those ids gets no page link. */
+  const pageHref = c ? (c.kind === "patient" ? (c.patientId ? `/crm/patient/${c.patientId}` : null) : c.enquiries[0] ? `/crm/enquiry/${c.enquiries[0].id}` : null) : null;
+  const content = (
+    <>
       {c && (
         <div className="space-y-5">
           {c.kind === "enquiry-only" && <Alert tone="info" title="Not a patient yet">This person has only made an enquiry. No patient record or appointment exists for them.</Alert>}
@@ -58,7 +61,7 @@ export function ContactDetailSheet({ contact: c, access, onClose }: { contact?: 
 
           {c.patientId && access.patientRecords && <section><H>Patient record</H><Button variant="secondary" size="sm" onClick={() => go(`/patients/${c.patientId}`)}><UserRound className="size-4" />Open patient record</Button></section>}
 
-          <section><H>Communication</H><CommunicationPanel subject={{ name: c.name, enquiryIds: c.enquiries.map((e) => e.id), patientId: c.patientId, reach: c.reach, consent: c.consent }} canCompose={false} canReadText={access.details} onOpenEnquiry={(id) => go(`/enquiries?open=${id}`)} />{c.enquiries.length > 0 && <p className="mt-1.5 text-xs text-muted">To reply, open the enquiry. Messages are written in one place only.</p>}</section>
+          <section><H>Communication</H><CommunicationPanel subject={{ name: c.name, enquiryIds: c.enquiries.map((e) => e.id), patientId: c.patientId, reach: c.reach, consent: c.consent }} canCompose={false} canReadText={access.details} onOpenEnquiry={(id) => go(`/enquiries/${id}`)} />{c.enquiries.length > 0 && <p className="mt-1.5 text-xs text-muted">To reply, open the enquiry. Messages are written in one place only.</p>}</section>
 
           <section><H>Enquiries ({c.enquiries.length})</H>
             {c.enquiries.length === 0 ? <p className="text-[13px] text-muted">No enquiries linked to this patient.</p> : (
@@ -66,7 +69,7 @@ export function ContactDetailSheet({ contact: c, access, onClose }: { contact?: 
                 <li key={e.id} className="rounded-lg border border-line px-3 py-2 text-[13px]">
                   <div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="font-medium">{svc(e.serviceId)}</p><p className="text-xs text-muted">{e.id} · {e.source} · {fmtDate(e.received, true)}{who(e.assigneeId) ? ` · ${who(e.assigneeId)}` : ""}</p></div><EnquiryStatusBadge s={e.status} /></div>
                   {e.bookingLost && <p className="mt-1 text-xs text-[#8F2D2D]">Appointment {e.appointment?.status === "no_show" ? "missed" : "cancelled"}. The enquiry is open again.</p>}
-                  <Button variant="ghost" size="sm" className="-ml-2 mt-1" onClick={() => go(`/enquiries?open=${e.id}`)}><ExternalLink className="size-3.5" />Open enquiry</Button>
+                  <Button variant="ghost" size="sm" className="-ml-2 mt-1" onClick={() => go(`/enquiries/${e.id}`)}><ExternalLink className="size-3.5" />Open enquiry</Button>
                 </li>))}</ul>)}
           </section>
 
@@ -81,6 +84,21 @@ export function ContactDetailSheet({ contact: c, access, onClose }: { contact?: 
                 </li>))}</ul>)}
           </section>
         </div>)}
+    </>
+  );
+  if (page) {
+    return (
+      <div className="mx-auto max-w-3xl">
+        <Link href="/crm" className="text-[13px] text-primary hover:underline">← All contacts</Link>
+        <div className="mb-4 mt-1"><h1 className="text-[24px] font-semibold tracking-tight">{c?.name ?? "Contact"}</h1><p className="text-[13px] text-muted">{desc}</p></div>
+        <div className="rounded-xl border border-line bg-white p-5">{content}</div>
+      </div>
+    );
+  }
+  return (
+    <Sheet open={!!c} onOpenChange={(o) => !o && onClose()} width={500} title={c?.name ?? "Contact"} description={desc}>
+      {pageHref && <Link href={pageHref} className="mb-3 inline-block text-[13px] font-medium text-primary hover:underline">Open full page</Link>}
+      {content}
     </Sheet>
   );
 }

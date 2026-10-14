@@ -150,3 +150,6 @@ Pure functions behind the patient Overview, tested in `tests/patient-overview.te
 - `Finding.why` (`insight.ts`) carries the rule, recorded facts, limits and source links for each agent finding. These are fixed rules over demo data, not a model.
 - Dialogs and panels opened from code return focus to the opener (`useReturnFocus`, `ui/index.tsx`); the appointment panel also re-finds its opener by label if the list re-rendered.
 - Open model decision: `Room` has no link to services. If suitability is wanted, add `Room.serviceIds?: string[]` (empty means any) and apply it in `checkConflicts` and the room pickers, then show it in Rooms. Not done, so nothing claims it.
+
+## Detail pages
+`EnquiryDetailSheet` and `ContactDetailSheet` take a `page` prop and render the same content either in a side panel or as a full page, so the two cannot drift apart. Contact page addresses use `Patient.id` or `Enquiry.id` (`/crm/patient/P-10248`, `/crm/enquiry/E-1001`), never the CRM display key, in line with `IDENTITY_DECISIONS.md`. When a Contact id exists, the address should change to it and these two routes should redirect.

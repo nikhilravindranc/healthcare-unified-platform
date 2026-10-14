@@ -129,6 +129,10 @@ How they are enforced today (frontend only):
 - Changes during a session are held in memory and lost on reload.
 - `Contact` (`src/platform/contact.ts`) is a proposed shared person record with per-channel, per-purpose consent. It is not wired into PMS data. The CRM directory builds its rows from patients and enquiries with temporary keys and does not use this type. Ownership between Patient, CRM and Contact is a decision still to agree with the backend developer (see ARCHITECTURE.md).
 
+### Detail pages
+- **Enquiries** (`/enquiries/[id]`) and **Contacts** (`/crm/patient/[patientId]`, `/crm/enquiry/[enquiryId]`) have full pages with the same content as the side panel. Lists still open the side panel for quick viewing, and each panel has an "Open full page" link. The contact address uses the patient or enquiry record id, not the directory's display key, because a contact has no id of its own yet. A role that cannot see those ids gets no page link and a "Contact not found" message.
+- Other records (campaigns, online bookings, providers, services, inventory items, forms) still open in a panel or editor. Appointments open in the appointment panel; their full-page version is not built.
+
 ### Practice configuration (frontend)
 - **Services**: Active services are offered for new bookings. Inactive services are not offered on the online booking page or in the new appointment form; existing appointments, visits and invoices keep them. Inactive rooms are treated the same way.
 - **Team**: each provider's availability is shown as the booking rules actually read it (days and hours, time off). Text that cannot be read is reported and no rule is applied. The practice break, closed dates, booking notice and window are practice-wide settings.
@@ -150,7 +154,7 @@ How they are enforced today (frontend only):
 - Multi-clinic tenancy: one practice per browser.
 
 ### Browser tests
-`npm run test:e2e` runs 67 Playwright tests (Chromium) against the dev server: Calendar status and keyboard, configuration screens, form preview and agent explanations, plus patient tabs by mouse and keyboard, resuming an in-progress visit without a duplicate, patient to appointment to visit and back, a follow-up to its source visit, completing a form, role access, a controlled save failure, Reports labelling, consent wording, and no horizontal scroll at 375, 768 and 1280px on key screens. A development-only seam (`window.__pmsFailNext`, absent from production builds) makes the next save fail, because the mock API never does. `npm test` runs the unit tests.
+`npm run test:e2e` runs 72 Playwright tests (Chromium) against the dev server: Calendar status and keyboard, configuration screens, form preview and agent explanations, plus patient tabs by mouse and keyboard, resuming an in-progress visit without a duplicate, patient to appointment to visit and back, a follow-up to its source visit, completing a form, role access, a controlled save failure, Reports labelling, consent wording, and no horizontal scroll at 375, 768 and 1280px on key screens. A development-only seam (`window.__pmsFailNext`, absent from production builds) makes the next save fail, because the mock API never does. `npm test` runs the unit tests.
 
 ## 9. Risks to know before building further
 - Roles and permissions are only enforced in the browser, so they must be enforced by the backend.

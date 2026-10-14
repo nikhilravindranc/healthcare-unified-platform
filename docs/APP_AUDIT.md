@@ -140,7 +140,12 @@ See the implementation report. Data link integrity is covered by `tests/record-l
 - Keyboard and focus checked for what was touched: Calendar (arrow keys, T, Enter on an event, Escape, focus returns to the event), Forms preview (Enter on the button, Escape, focus returns), patient tabs and More menu. Dialogs and panels opened from code now return focus to the control that opened them (`useReturnFocus` in `ui/index.tsx`).
 - Not done: screen-reader testing, other browsers, a full accessibility audit.
 
+## Detail pages (14 Oct 2026)
+Done: `/enquiries/[id]`, `/crm/patient/[id]`, `/crm/enquiry/[id]` (side panel kept as quick view, with Open full page). Playwright covers both, the not-found states, a role without patient access, and 375 and 768px.
+Not done, by choice of scope: appointments, campaigns, online bookings, and practice records (providers, services, inventory, forms).
+
 ## Remaining frontend gaps (14 Oct 2026)
+- Full detail pages for appointments, campaigns, online bookings and practice records.
 - Room suitability by service: needs the model decision above.
 - Reports: illustrative charts stay until the seed has real history.
 - Calendar: no arrow-key movement between events, and no keyboard way to create an appointment in an empty slot other than the New appointment button.

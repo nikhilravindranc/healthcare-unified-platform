@@ -22,7 +22,7 @@ const digits = (s?: string) => (s ?? "").replace(/\D/g, "");
 const Row = ({ l, children }: { l: string; children: React.ReactNode }) => <div className="flex justify-between gap-4 py-1.5 text-[13px]"><dt className="text-muted">{l}</dt><dd className="text-right font-medium">{children}</dd></div>;
 const H = ({ children }: { children: React.ReactNode }) => <h3 className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted">{children}</h3>;
 
-export function EnquiryDetailSheet({ enquiry, needPatient: askPatient, onClose, onEdit }: { enquiry?: Enquiry; /** Open with the "link or create a patient" prompt showing. */ needPatient?: boolean; onClose: () => void; onEdit: (e: Enquiry) => void }) {
+export function EnquiryDetailSheet({ enquiry, needPatient: askPatient, onClose, onEdit, page }: { /** Render as a full page instead of a side panel. */ page?: boolean; enquiry?: Enquiry; /** Open with the "link or create a patient" prompt showing. */ needPatient?: boolean; onClose: () => void; onEdit: (e: Enquiry) => void }) {
   const { data: refs } = useRefs();
   const ui = useUI();
   const { readOnly } = useEnquiryAccess();
@@ -61,11 +61,9 @@ export function EnquiryDetailSheet({ enquiry, needPatient: askPatient, onClose, 
   };
   const canCreate = !!(e?.phone && e?.email);
 
-  return (
-    <Sheet open={!!e} onOpenChange={(o) => !o && onClose()} width={500} title={e?.name ?? "Enquiry"} description={e ? `${e.id} · received ${fmtDate(e.received, true)}` : undefined}
-      footer={e && !readOnly && <div className="flex w-full items-center justify-between gap-2">
+  const footer = e && !readOnly && <div className="flex w-full flex-wrap items-center justify-between gap-2">
         <Button variant="secondary" onClick={() => onEdit(e)}><Pencil className="size-4" />Edit</Button>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {!closed && (
             <Menu>
               <MenuTrigger asChild><Button variant="secondary">Mark as<ChevronDown className="size-4" aria-hidden /></Button></MenuTrigger>
@@ -76,7 +74,9 @@ export function EnquiryDetailSheet({ enquiry, needPatient: askPatient, onClose, 
             </Menu>)}
           {can("patients") && e.status !== "Appointment booked" && <Button onClick={book}><CalendarPlus className="size-4" />Book appointment</Button>}
         </div>
-      </div>}>
+      </div>;
+  const content = (
+    <>
       {!e ? <Skeleton className="h-40" /> : (
         <div className="space-y-5">
           <div className="grid grid-cols-2 gap-3">
@@ -144,6 +144,22 @@ export function EnquiryDetailSheet({ enquiry, needPatient: askPatient, onClose, 
       <ConfirmDialog open={confirm === "create"} onOpenChange={(o) => !o && setConfirm(null)} title="Create a patient record?" loading={mkPatient.pending}
         description={`This adds ${e?.name} to the demo patient list using the enquiry's phone and email. It is mock data and resets on reload.${dupWarn ? " A possible match was found, so check first." : ""}`}
         cancelLabel="Cancel" confirmLabel="Create patient" onConfirm={createPatient} />
+    </>
+  );
+  if (page) {
+    return (
+      <div className="mx-auto max-w-3xl">
+        <Link href="/enquiries" className="text-[13px] text-primary hover:underline">← All enquiries</Link>
+        <div className="mb-4 mt-1"><h1 className="text-[24px] font-semibold tracking-tight">{e?.name ?? "Enquiry"}</h1>{e && <p className="text-[13px] text-muted">{e.id} · received {fmtDate(e.received, true)}</p>}</div>
+        <div className="rounded-xl border border-line bg-white p-5">{content}</div>
+        {footer && <div className="mt-4 rounded-xl border border-line bg-white p-3">{footer}</div>}
+      </div>
+    );
+  }
+  return (
+    <Sheet open={!!e} onOpenChange={(o) => !o && onClose()} width={500} title={e?.name ?? "Enquiry"} description={e ? `${e.id} · received ${fmtDate(e.received, true)}` : undefined} footer={footer}>
+      {e && <Link href={`/enquiries/${e.id}`} className="mb-3 inline-block text-[13px] font-medium text-primary hover:underline">Open full page</Link>}
+      {content}
     </Sheet>
   );
 }

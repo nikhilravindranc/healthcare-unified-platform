@@ -119,3 +119,44 @@ test("Marketing role cannot open patient pages", async ({ page }) => {
   await openAs(page, "/patients/P-10248", "Marketing");
   await expect(page.getByText(/You don't have access to/).first()).toBeVisible();
 });
+
+test("Enquiries: the side panel links to a full page, and the page opens by its own address", async ({ page }) => {
+  await openAs(page, "/enquiries");
+  await page.getByRole("row").nth(1).click();
+  await page.getByRole("link", { name: "Open full page" }).click();
+  await expect(page).toHaveURL(/\/enquiries\/E-/);
+  await expect(page.getByRole("link", { name: "← All enquiries" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(page.getByText("Next actions")).toBeVisible();
+  await page.goto("/enquiries/E-1001");
+  await expect(page.getByText("E-1001 · received")).toBeVisible();
+  await page.goto("/enquiries/E-nope");
+  await expect(page.getByText("Enquiry not found")).toBeVisible();
+});
+
+test("Contacts: a patient and an enquiry-only person each have a full page, using record ids", async ({ page }) => {
+  await openAs(page, "/crm/patient/P-10248");
+  await expect(page.getByRole("heading", { level: 1, name: "Sarah Johnson" })).toBeVisible();
+  await expect(page.getByText("Marketing consent")).toBeVisible();
+  await page.goto("/crm/enquiry/E-1001");
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(page.getByText("Not a patient yet")).toBeVisible();
+  await page.goto("/crm/patient/P-nope");
+  await expect(page.getByText("Contact not found")).toBeVisible();
+});
+
+test("Contacts: a role without patient access gets no patient page", async ({ page }) => {
+  await openAs(page, "/crm/patient/P-10248", "Marketing");
+  await expect(page.getByText("Contact not found")).toBeVisible();
+});
+
+for (const width of [375, 768]) {
+  test(`enquiry and contact pages have no horizontal scroll at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    for (const path of ["/enquiries/E-1001", "/crm/patient/P-10248"]) {
+      await openAs(page, path);
+      await page.waitForLoadState("networkidle");
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+    }
+  });
+}
