@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Search, Users, UserCheck, Inbox } from "lucide-react";
 import { Alert, Badge, Button, EmptyState, Input, PageHeader, Pagination, Panel, Select, SkeletonRows, StatGrid, StatTile, Td, Th } from "@/components/ui";
+import { CONSENT_LABEL } from "../comms/eligibility";
 import { fmtDate } from "@/lib/db";
 import { CONTACT_STAGES, filterContacts, SOURCE_FILTER_OPTIONS, type CrmContact } from "./contacts";
 import { ContactDetailSheet } from "./contact-detail";
@@ -9,7 +10,7 @@ import { useCrmContacts } from "./hooks";
 import { StageBadge } from "./stage-badge";
 
 const PAGE = 10;
-const consentText = (c: CrmContact) => (c.consent.status === "granted" ? "Granted" : c.consent.status === "withdrawn" ? "Withdrawn" : "Not recorded");
+const consentText = (c: CrmContact) => CONSENT_LABEL[c.consent.status];
 
 export function CrmDirectory() {
   const { contacts, loading, error, access, refetch } = useCrmContacts();

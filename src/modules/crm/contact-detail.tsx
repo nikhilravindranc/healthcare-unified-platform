@@ -2,6 +2,7 @@
 import { useRouter } from "next/navigation";
 import { CalendarCheck, ExternalLink, UserRound } from "lucide-react";
 import { Alert, Badge, Button, Sheet, StatusBadge } from "@/components/ui";
+import { CONSENT_LABEL } from "../comms/eligibility";
 import { useUI } from "@/components/app/ui-state";
 import { fmtDate, fmtTime } from "@/lib/db";
 import { useRefs } from "@/lib/hooks";
@@ -24,7 +25,7 @@ export function ContactDetailSheet({ contact: c, access, onClose }: { contact?: 
   const prov = (id: string) => refs?.providers.find((p) => p.id === id)?.short ?? "";
   const who = (id?: string) => refs?.users.find((u) => u.id === id)?.name;
   const go = (href: string) => { onClose(); router.push(href); };
-  const consentLabel = c?.consent.status === "granted" ? "Granted" : c?.consent.status === "withdrawn" ? "Withdrawn" : "Not recorded";
+  const consentLabel = c ? CONSENT_LABEL[c.consent.status] : "";
 
   return (
     <Sheet open={!!c} onOpenChange={(o) => !o && onClose()} width={500} title={c?.name ?? "Contact"}
@@ -51,6 +52,7 @@ export function ContactDetailSheet({ contact: c, access, onClose }: { contact?: 
             <Row l="Date recorded">{c.consent.recordedAt ? fmtDate(c.consent.recordedAt, true) : <Missing>Date not recorded</Missing>}</Row>
             <Row l="Source">{c.consent.source ?? <Missing>Source not recorded</Missing>}</Row>
           </dl>
+            {c.consent.status === "not-granted" && <p className="mt-1.5 text-xs text-muted">An earlier record says marketing was not agreed. It does not say whether the person declined, withdrew or was never asked.</p>}
             {c.consent.status === "not-recorded" && <p className="mt-1.5 text-xs text-muted">No consent has been recorded for this person. That is not the same as consent being given.</p>}
           </section>
 

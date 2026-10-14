@@ -39,11 +39,14 @@ Your job is to build the real backend behind it, following the rules below. Prod
 5. A merge can be undone for 30 days.
 
 ### 4. Consent
-1. Append-only records: `contact_id, channel (email|sms|phone), purpose (marketing|reminders|recall), status (granted|withdrawn), recorded_at, recorded_by, source, evidence?`.
-2. A withdrawal is a new row. Never edit or delete.
-3. **No row means not recorded, which means not allowed to market.**
-4. Launch scope: email marketing, SMS marketing, and reminders by email and SMS. SMS marketing is blocked until SMS consent is captured. It is never assumed from email consent.
+Full model: `docs/IDENTITY_DECISIONS.md` section 10.
+1. Four categories: marketing, care communication, treatment, photo. Each is a `ConsentRecord` with `category, purpose, channel?, contact_id, patient_id/visit_id/photo_id?, status (granted|denied|withdrawn), effective_at, recorded_at, recorded_by, source, method, wording_ref, supersedes_id?, evidence_ref?`.
+2. Append-only. A withdrawal or change is a new row. Never edit or delete.
+3. **No row means not recorded, which means not allowed.** Never infer marketing consent from treatment consent or booking, or photo consent from treatment consent.
+4. Launch scope for messages: email marketing, SMS marketing, and reminders by email and SMS. SMS marketing is blocked until SMS consent is captured, never assumed from email.
 5. Service messages about a person's own appointment need no marketing consent, but need a reachable address or number.
+6. Enforce at send time (and when sharing a photo) on the server. Do not claim any jurisdiction's rules are met by the model alone.
+7. The frontend now shows a stored marketing "no" as "not granted, details unknown" and photo consent as Granted, Denied, Withdrawn or Not recorded. When you migrate, import the old boolean `false` as `denied` flagged legacy and unverified (never as a withdrawal) and create no row for a missing value. Do not copy the frontend's display states as data.
 
 ### 5. Sending and delivery
 1. The server checks eligibility at send time: explicit granted consent for the channel and purpose, plus a way to reach the person. The frontend preview is a convenience and must not be trusted.

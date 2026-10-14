@@ -30,6 +30,7 @@
  *  3. Otherwise "Unknown". Nothing is guessed.
  */
 import type { Appointment, ApptStatus, Patient } from "@/lib/types";
+import type { ConsentState } from "../comms/eligibility";
 import { isLostAppointment } from "../enquiries/booking-state";
 import { ENQUIRY_SOURCES, type Enquiry } from "../enquiries/types";
 
@@ -51,7 +52,7 @@ export const SOURCE_FILTER_OPTIONS = [...ENQUIRY_SOURCES, "Provider referral", S
 
 export interface FirstTouch { source: string; basis: "enquiry" | "patient-referral" | "none"; mapped: boolean; raw?: string; date?: string; enquiryId?: string }
 /** The patient model records only a yes/no. A date or source for consent is not stored anywhere, so they stay undefined. */
-export interface ConsentView { status: "granted" | "withdrawn" | "not-recorded"; recordedAt?: string; source?: string }
+export interface ConsentView { status: ConsentState["status"]; recordedAt?: string; source?: string }
 export interface ContactAppointment { id: string; date: string; time: string; status: ApptStatus; serviceId: string; providerId: string; enquiryId?: string; lost: boolean }
 export interface VisitLite { patientId: string; date: string; status: string }
 
@@ -95,7 +96,7 @@ export function deriveFirstTouch(enquiries: Enquiry[], patient?: Pick<Patient, "
 
 export function deriveConsent(patient?: Pick<Patient, "marketingConsent">): ConsentView {
   if (!patient || patient.marketingConsent === undefined) return { status: "not-recorded" };
-  return { status: patient.marketingConsent ? "granted" : "withdrawn" };
+  return { status: patient.marketingConsent ? "granted" : "not-granted" };
 }
 
 export function derivePatientStage(appts: { status: ApptStatus; date: string }[], visits: { date: string; status: string }[], today: string): ContactStage {

@@ -7,7 +7,7 @@ import { messages } from "../src/modules/comms/data";
 import { messagesFor } from "../src/modules/comms/select";
 
 const reach = { email: true, phone: true };
-const c = (status: "granted" | "withdrawn" | "not-recorded") => ({ status });
+const c = (status: "granted" | "withdrawn" | "not-granted" | "not-recorded") => ({ status });
 
 test("marketing needs an explicit granted consent: not recorded and withdrawn both block it", () => {
   assert.equal(checkEligibility({ channel: "email", purpose: "marketing", reach, consent: c("granted") }).eligible, true);
@@ -20,7 +20,7 @@ test("marketing needs an explicit granted consent: not recorded and withdrawn bo
 test("a missing consent value never becomes permission", () => {
   assert.deepEqual(consentFromFlag(undefined), { status: "not-recorded" });
   assert.deepEqual(consentFromFlag(true), { status: "granted" });
-  assert.deepEqual(consentFromFlag(false), { status: "withdrawn" });
+  assert.deepEqual(consentFromFlag(false), { status: "not-granted" })   // a stored "no" is never read as a withdrawal;
   assert.equal(checkEligibility({ channel: "email", purpose: "marketing", reach, consent: consentFromFlag(undefined) }).eligible, false);
 });
 
@@ -70,4 +70,10 @@ test("the composer checks the fields that matter for each channel", () => {
   assert.equal(composerSchema.safeParse({ ...ok, channel: "sms", subject: "" }).success, true);
   assert.equal(composerSchema.safeParse({ ...ok, channel: "sms", subject: "", body: "x".repeat(400) }).success, false);
   assert.equal(composerSchema.safeParse({ ...ok, body: "no" }).success, false);
+});
+
+test("an earlier stored no blocks marketing and says its details are unknown, and is not called a withdrawal", () => {
+  const r = checkEligibility({ channel: "email", purpose: "marketing", reach, consent: c("not-granted") });
+  assert.deepEqual([r.eligible, r.reasons], [false, [REASON.notGranted]]);
+  assert.ok(!/withdraw/i.test(REASON.notGranted));
 });

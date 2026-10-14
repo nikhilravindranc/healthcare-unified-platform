@@ -63,7 +63,7 @@ function Agents() {
 
   return (
     <>
-      <PageHeader title="Agents" subtitle="Agents review practice data and surface items for your team. Nothing changes until a person approves it. This directory is separate from the EVI chat." actions={<Button variant="secondary" onClick={() => ui.evi()}><EviAvatar size={20} />Ask EVI</Button>} />
+      <PageHeader title="Agents" subtitle="Demo agents apply fixed rules to the demo records and surface items for your team. No AI model is connected. Nothing changes until a person approves it. This directory is separate from the EVI chat." actions={<Button variant="secondary" onClick={() => ui.evi()}><EviAvatar size={20} />Ask EVI</Button>} />
       <div className="grid gap-4 lg:grid-cols-2">
         {agents.map((a) => {
           const enabled = st.agents[a.id] !== false; const m = META[a.id];

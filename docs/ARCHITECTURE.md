@@ -25,15 +25,18 @@ Registry: `src/platform/modules.ts`. The shell builds nav from it, filtered by p
   Marketing has no clinical perms. Exporting contact lists stays under `exports` (Owner, Practice manager). Auth is front-end demo state; the backend developer replaces it.
 - **Data**: still the in-memory mock (`src/lib/db.ts`). The sample enquiries and the patients and appointments that belong to the booked ones come from one pure builder, `src/lib/demo-seed.ts`, called once by `db.ts` when it loads. Every route therefore sees the same 25 patients and appointments no matter which page is opened first (a test covers this). `src/modules/enquiries/data.ts` only reads the result.
 
-## Identity ownership (proposed; to agree with the backend developer)
+## Identity ownership (product decisions agreed 14 Oct 2026; backend not built)
 | Area | Owns |
 |---|---|
 | PMS | Patient record, clinical profile, appointments, visits. Authoritative for clinical information. |
 | Enquiries | Enquiry capture, status, assignment, follow-up tasks, history, linking to a patient and converting to an appointment. A person can enquire before becoming a patient. |
 | CRM | Broader contact visibility: who a person is across patients and enquiries, how they first found the practice, and their enquiry and appointment history. Read-only today. It owns no records and has no pipeline or tasks of its own. |
-| Contact (shared identity) | A person across products, linked to Patient and CRM records by stable IDs. Records are linked, not duplicated. |
+| Contact (shared identity) | A person across products, linked to Patient and CRM records by stable IDs. May exist without a Patient. Holds no clinical content. Records are linked, not duplicated. |
+| Consent | An authoritative consent record or service. Patient, visit, photo and form records hold references. |
+| Visit, Appointment | Visit is care delivered. Appointment is the booking and attendance lifecycle. Neither implies the other. |
+| Campaigns, Billing, Booking | Campaigns own audiences and sends. Billing owns transactions. Booking owns the public experience. Each links by id. |
 
-See `docs/IDENTITY_DECISIONS.md` for the options, recommendations and API boundaries to agree. `Patient.contactId` stays a proposed relationship. No migration in the frontend-only phase (`src/platform/contact.ts` is the type sketch).
+The agreed ownership model, conversion and direct-booking behaviour, consent categories and record shape, merge policy, source-of-truth table, audit requirements, migration path and items needing legal or security review are in `docs/IDENTITY_DECISIONS.md` (sections 0 and 8 to 14). That file is the single place for these decisions and this section only summarises them. `Patient.contactId` is a documented future relationship, not implemented. No migration in the frontend-only phase (`src/platform/contact.ts` is the type sketch).
 
 **Enquiry to patient**
 1. Enquiries creates an enquiry for a person who is not yet a patient (CRM shows them as an enquiry-only contact).
@@ -46,7 +49,7 @@ One person may have several enquiries and appointments, or become a patient late
 
 **Deduplication**: plan for it, but never decide "same person" from email or phone alone (shared family details, changed numbers and typos cause false matches). Use cautious matching and let staff review uncertain matches; no automatic merge.
 
-**Consent**: a record per channel and purpose (`channel`, `purpose`, `status`, `at`, `source`), not a yes/no flag. Any service that sends communications must enforce it; the UI does not.
+**Consent**: append-only records by category (marketing, care communication, treatment, photo), purpose and channel, with status, effective date, source, method and wording reference; not a yes/no flag. Missing is never granted. The backend or communication service enforces it; the UI does not. Today only `Patient.marketingConsent` (boolean), signed visit forms, filed consent documents and `PhotoAsset.consent` exist.
 
 ## Healthcare workspace: navigation and Enquiries (frontend phase)
 **Sidebar** (`src/components/app/shell.tsx`, `src/platform/modules.ts`)
@@ -114,7 +117,8 @@ One place defines what a status means: **lost** is cancelled or no-show (never a
 - Reports keeps its own copy of its line chart. `components/app/charts.tsx` serves the new screens.
 
 ## Tests
-`npm test` runs Node's built-in test runner on `tests/*.test.ts` (type stripping needs Node 22.18 or later). They cover the permission-override logic, the appointment join and insights counts, and the Flow layout. UI behavior is checked manually in the browser.
+`npm test` runs Node's built-in test runner on `tests/*.test.ts` (type stripping needs Node 22.18 or later): permission overrides, appointment rules and joins, availability, booking, comms eligibility and consent wording, CRM contacts, campaigns, patient Overview rules, record-link integrity (every invoice, photo, form, follow-up and appointment points at a real record of the same patient, and appointment and visit point at each other), Reports record counts, and the Visits list rules.
+`npm run test:e2e` runs Playwright (`e2e/`, one added dev dependency, `@playwright/test`) against the dev server on port 3000. Data is in memory and resets on each full page load, so each test starts from the demo seed. A development-only seam in `useAction` (`window.__pmsFailNext`) fails the next save so the error path can be tested; it is disabled when `NODE_ENV` is production.
 
 ## Phases
 1. (done) Registry, perms, nav entries, Contact type sketch, CRM Contacts v1, shared appointment rules, communications foundation, Campaigns and Online Bookings in demo mode.
@@ -125,3 +129,16 @@ One place defines what a status means: **lost** is cancelled or no-show (never a
 ## Decisions to confirm
 - Backend: session, roles and data are front-end placeholders (localStorage and in-memory mock) for the backend developer to replace.
 - Users who already saved custom role permissions won't see the new module perms until they re-save them (saved arrays replace the defaults).
+
+## Patient Overview rules (`src/lib/patient-overview.ts`)
+Pure functions behind the patient Overview, tested in `tests/patient-overview.test.ts`: the next appointment (open bookings only, never cancelled or no-show), the visit to resume, the last completed visit, signed consent on file, medical history on file, forms awaiting signature, treatment-plan progress and the prioritised "Needs action" list. They read recorded facts only: a booking is never treated as care that took place, plan steps count only when recorded as Completed, and a missing record is reported as missing. No backend or data-model change was needed.
+
+**Decision, Appointments tab:** the audit found no patient-specific booking history. Care history listed only upcoming bookings, and the older visits table in `records.tsx` was not used anywhere, so past, cancelled and no-show bookings were not visible from the patient record. A new Appointments tab was added. It reuses the appointment panel for reschedule and cancel, so the rules stay in one place.
+
+
+## Visits, follow-ups and consent wording (frontend)
+- `src/lib/visit-list.ts`: pure rules for the Visits list. A booking is shown only when the visit and an appointment point at each other. Attention flags are limited to forms awaiting signature and a recommended follow-up with no follow-up created; a missing booking is information, not a task.
+- `FollowUp.note` is the follow-up's reason (it already existed and was unused). `type` stays the category. Older records have no reason and show "Reason not recorded".
+- `hasCare` (`patient-overview.ts`): a plan step can be completed from a visit only if that visit records care.
+- Consent states: `ConsentState` is `granted | withdrawn | not-granted | not-recorded`. `not-granted` is the old stored "no" with unknown details. It blocks marketing and is never called a withdrawal. `PhotoConsent` is `Granted | Denied | Withdrawn | Not recorded`. These are display states over the current storage; the append-only consent model in `IDENTITY_DECISIONS.md` section 10 is not simulated in the frontend.
+- A route error boundary (`src/app/(app)/error.tsx`) keeps the shell usable if a screen fails to render.

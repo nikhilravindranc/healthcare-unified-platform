@@ -9,7 +9,7 @@ import { useSession } from "@/lib/auth";
 import { fmtDate } from "@/lib/db";
 import { useAction } from "@/lib/hooks";
 import { commsApi } from "./api";
-import { checkEligibility, SMS_LIMIT, type Reach } from "./eligibility";
+import { CONSENT_LABEL, checkEligibility, SMS_LIMIT, type ConsentState, type Reach } from "./eligibility";
 import { useMessages } from "./hooks";
 import { composerSchema, type ComposerInput } from "./schemas";
 import { messagesFor } from "./select";
@@ -19,12 +19,12 @@ export interface CommsSubject {
   name: string;
   enquiryId?: string; /** All enquiries of a contact (CRM). */ enquiryIds?: string[]; patientId?: string; appointmentId?: string;
   reach: Reach;
-  consent: { status: "granted" | "withdrawn" | "not-recorded" };
+  consent: ConsentState;
 }
 
 const ICON: Record<Channel, typeof Mail> = { email: Mail, sms: MessageSquare, call: Phone };
 const TONE: Record<MessageStatus, Parameters<typeof Badge>[0]["tone"]> = { draft: "neutral", simulated: "peach", received: "mint", logged: "blue" };
-const consentText = (s: CommsSubject["consent"]["status"]) => (s === "granted" ? "Granted" : s === "withdrawn" ? "Withdrawn" : "Not recorded");
+const consentText = (s: ConsentState["status"]) => CONSENT_LABEL[s];
 
 /**
  * The one place messages are shown and written. Used in the enquiry panel (with the composer) and in the CRM

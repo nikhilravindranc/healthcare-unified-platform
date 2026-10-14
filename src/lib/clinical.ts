@@ -99,7 +99,7 @@ export function saveRole(r: Role) { try { localStorage.setItem("pms.role", r); w
 
 /* ---------- Photos ---------- */
 const P = (id: string, patientId: string, visitId: string, date: string, view: PhotoAsset["view"], stage: PhotoAsset["stage"], area: string): PhotoAsset => ({
-  id, patientId, visitId, date, author: "Dr. Patel", view, stage, area, source: "demo", consent: "Granted", notes: "", key: PATIENT_FACE[patientId],
+  id, patientId, visitId, date, author: "Dr. Patel", view, stage, area, source: "demo", consent: "Not recorded", notes: "", key: PATIENT_FACE[patientId],
 });
 export const photos: PhotoAsset[] = [
   P("ph1", "P-10248", "V-5001", "2026-09-18", "Front", "Before", "Full face"),
@@ -347,7 +347,7 @@ export function journeyFor(pid: string): JourneyEvent[] {
   appointments.filter((a) => a.patientId === pid && a.date >= TODAY && isOpenStatus(a.status)).forEach((a) => ev.push({ id: a.id, date: a.date, kind: "appointment", title: services.find((s) => s.id === a.serviceId)?.name ?? "Appointment", sub: `${fmtDate(a.date)} · ${a.time}`, owner: getProvider(a.providerId)?.short ?? "", status: "Upcoming", upcoming: true }));
   followUps.filter((f) => f.patientId === pid).forEach((f) => ev.push({ id: f.id, date: f.due, kind: "followup", title: f.type, sub: `Due ${fmtDate(f.due)}`, owner: f.assignee, status: f.status === "Completed" ? "Completed" : f.due < TODAY ? "Overdue" : "Open", href: "/follow-ups", upcoming: f.status === "Open" && f.due >= TODAY }));
   invoices.filter((i) => i.patientId === pid).forEach((i) => ev.push({ id: i.id, date: i.issued, kind: "payment", title: `${i.id} · ${money(docTotal(i))}`, sub: i.lines.map((l) => l.desc).slice(0, 2).join(", "), owner: "Front desk", status: invoiceStatus(i), invoiceId: i.id }));
-  photos.filter((p) => p.patientId === pid).forEach((p) => ev.push({ id: p.id, date: p.date, kind: "photo", title: `${p.stage} · ${p.view}`, sub: p.area, owner: p.author, status: p.consent === "Granted" ? "Consent on file" : "Consent pending", photoIds: [p.id] }));
+  photos.filter((p) => p.patientId === pid).forEach((p) => ev.push({ id: p.id, date: p.date, kind: "photo", title: `${p.stage} · ${p.view}`, sub: p.area, owner: p.author, status: p.consent === "Granted" ? "Photo consent granted" : p.consent === "Not recorded" ? "Photo consent not recorded" : `Photo consent ${p.consent.toLowerCase()}`, photoIds: [p.id] }));
   return ev.sort((a, b) => b.date.localeCompare(a.date));
 }
 export { patients };

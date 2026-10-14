@@ -10,6 +10,7 @@ import { useUI } from "@/components/app/ui-state";
 import { FormFields } from "@/components/patient/records";
 import { NewInvoiceDialog } from "@/components/patient/financials";
 import { apiC, CLINIC_CONFIG, docTotal, inventory, invoices, money, SERVICE_CAPS, SERVICE_PRICE, type ClinicType } from "@/lib/clinical";
+import { hasCare } from "@/lib/patient-overview";
 import { useAction, useBilling, useExtras, usePhotos, useRefs, useTemplates, useVisits } from "@/lib/hooks";
 import { addDays, api, fmtDate, TODAY } from "@/lib/db";
 import { prepSummary } from "@/lib/insight";
@@ -190,7 +191,7 @@ export function ConsentTab({ v, p, locked, patch }: { v: Visit; p: Patient; lock
 export function FollowUpPanel({ v, p, patch, locked }: { v: Visit; p: Patient; patch: Patch; locked: boolean }) {
   const ui = useUI(); const { data: refs } = useRefs();
   const create = useAction(api.createFollowUp, "Follow-up task created");
-  const [f, setF] = useState({ type: "Post-treatment", due: addDays(TODAY, 14), assignee: refs?.providers.find((x) => x.id === v.providerId)?.short ?? "Dr. Patel" });
+  const [f, setF] = useState({ type: "Post-treatment", due: addDays(TODAY, 14), note: "", assignee: refs?.providers.find((x) => x.id === v.providerId)?.short ?? "Dr. Patel" });
   return (
     <div className="grid gap-5 lg:grid-cols-2">
       <Panel><PanelHeader title="Instructions and recommendation" /><div className="space-y-4 p-4">
@@ -198,8 +199,9 @@ export function FollowUpPanel({ v, p, patch, locked }: { v: Visit; p: Patient; p
         <Field label="Recommended follow-up"><Input disabled={locked} placeholder="e.g. Post-treatment review in 2 weeks" value={v.followUpRecommended} onChange={(e) => patch({ followUpRecommended: e.target.value })} /></Field></div></Panel>
       <Panel><PanelHeader title="Follow-up task and next appointment" /><div className="space-y-3 p-4">
         <div className="grid grid-cols-2 gap-3"><Field label="Type"><Select value={f.type} onChange={(e) => setF({ ...f, type: e.target.value })}>{["Post-treatment", "Routine review", "Treatment continuation", "Recall", "Other"].map((t) => <option key={t}>{t}</option>)}</Select></Field><Field label="Due"><Input type="date" min={TODAY} value={f.due} onChange={(e) => setF({ ...f, due: e.target.value })} /></Field></div>
+        <Field label="Reason" hint="Optional. Why this follow-up is needed."><Input value={f.note} maxLength={200} onChange={(e) => setF({ ...f, note: e.target.value })} /></Field>
         <Field label="Owner"><Select value={f.assignee} onChange={(e) => setF({ ...f, assignee: e.target.value })}>{["Dr. Patel", "Dr. Rao", "Dr. Mehta", "Tom Reyes", "Meera Iyer"].map((t) => <option key={t}>{t}</option>)}</Select></Field>
-        <div className="flex flex-wrap gap-2"><Button variant="secondary" loading={create.pending} onClick={() => create.run({ patientId: p.id, visitId: v.id, type: f.type as never, due: f.due, assignee: f.assignee })}>Create follow-up task</Button><Button onClick={() => ui.newAppt({ patientId: p.id, providerId: v.providerId })}>Book next appointment</Button></div></div></Panel>
+        <div className="flex flex-wrap gap-2"><Button variant="secondary" loading={create.pending} onClick={() => create.run({ patientId: p.id, visitId: v.id, type: f.type as never, due: f.due, assignee: f.assignee, note: f.note.trim() || undefined })}>Create follow-up task</Button><Button onClick={() => ui.newAppt({ patientId: p.id, providerId: v.providerId })}>Book next appointment</Button></div></div></Panel>
     </div>
   );
 }
@@ -211,7 +213,7 @@ export function PlanTab({ v, p }: { v: Visit; p: Patient }) {
   return plans.length === 0 ? <Panel><EmptyState title="No treatment plan" text="Create one from the patient's Treatments tab." action={<Link href={`/patients/${p.id}?tab=treatments`}><Button variant="secondary">Open treatments</Button></Link>} /></Panel> : (
     <div className="space-y-4">{plans.map((pl) => <Panel key={pl.id}><PanelHeader title={pl.name} sub={pl.goal} />
       <ol className="space-y-1.5 p-4">{pl.steps.map((s, i) => <li key={s.id} className="flex items-center gap-3 rounded-lg border border-line px-3 py-2 text-[13px]"><span className="grid size-5 place-items-center rounded-full bg-cloud text-[11px]">{i + 1}</span><span className="flex-1 font-medium">{s.title}{s.date && <span className="font-normal text-muted"> · {fmtDate(s.date)}</span>}</span><Badge tone={s.status === "Completed" ? "mint" : s.status === "Scheduled" ? "blue" : s.status === "Deferred" ? "peach" : "neutral"}>{s.status}</Badge>
-        {s.status !== "Completed" && <Button size="sm" variant="secondary" onClick={() => setStep.run(pl.id, s.id, "Completed")}>Mark completed</Button>}</li>)}</ol></Panel>)}
+        {s.status !== "Completed" && (hasCare(v) ? <Button size="sm" variant="secondary" onClick={() => setStep.run(pl.id, s.id, "Completed")}>Mark completed</Button> : <span className="text-xs text-muted">Record the care in this visit first</span>)}</li>)}</ol></Panel>)}
       <p className="text-xs text-muted">Visit {v.id} can complete steps of the provider-authored plan. EVI never proposes a plan.</p></div>
   );
 }

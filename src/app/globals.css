@@ -12,6 +12,7 @@
   --muted: #64748b;
   --line: #e2e7eb;
   --active: #eaf3fb;
+  --selected: #e5f8fb;
 }
 
 @theme inline {
@@ -26,6 +27,7 @@
   --color-muted: var(--muted);
   --color-line: var(--line);
   --color-active: var(--active);
+  --color-selected: var(--selected);
   --color-danger: #b4403f;
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }

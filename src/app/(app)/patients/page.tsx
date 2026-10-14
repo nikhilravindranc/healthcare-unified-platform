@@ -2,15 +2,17 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { isOpenStatus } from "@/lib/appointment-rules";
 import { useRouter, useSearchParams } from "next/navigation";
-import { CalendarCheck, CalendarClock, MoreHorizontal, Search, SlidersHorizontal, UserPlus, Users } from "lucide-react";
+import { CalendarCheck, CalendarClock, MoreHorizontal, Search, ShieldAlert, SlidersHorizontal, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Badge, Button, EmptyState, Input, Menu, MenuContent, MenuItem, MenuTrigger, PageHeader, Pagination, Panel, Select, SkeletonRows, StatGrid, StatTile, Td, Th } from "@/components/ui";
 import { PStatus } from "@/components/app/bits";
+import { sortAlerts } from "@/components/patient/summary";
 import { PatientAvatar } from "@/components/app/photos";
 import { useUI } from "@/components/app/ui-state";
 import { useAction, useAppointments, useFollowUps, usePatients, useRefs, useRole, useVisits } from "@/lib/hooks";
 import { api, fmtDate, fmtTime, TODAY, addDays } from "@/lib/db";
 import { money, patientFinancials } from "@/lib/clinical";
+import type { Patient } from "@/lib/types";
 
 const PAGE = 8;
 export default function PatientsPage() { return <Suspense><Patients /></Suspense>; }
@@ -70,7 +72,7 @@ function Patients() {
   const actions = (p: (typeof rows)[number]["p"]) => (
     <Menu><MenuTrigger asChild><button aria-label={`Actions for ${p.first} ${p.last}`} className="rounded-md p-1.5 text-muted hover:bg-cloud" onClick={(e) => e.stopPropagation()}><MoreHorizontal className="size-4" /></button></MenuTrigger>
       <MenuContent><MenuItem onSelect={() => router.push(`/patients/${p.id}`)}>Open patient</MenuItem><MenuItem onSelect={() => ui.newAppt({ patientId: p.id })}>Book appointment</MenuItem><MenuItem onSelect={() => begin(p.id, p.providerId)}>Start visit</MenuItem>
-        <MenuItem onSelect={() => router.push(`/patients/${p.id}?tab=visits`)}>Add note (in a visit)</MenuItem>{can("photos") && <MenuItem onSelect={() => router.push(`/patients/${p.id}?tab=photos`)}>Upload photo</MenuItem>}</MenuContent></Menu>
+        <MenuItem onSelect={() => router.push(`/patients/${p.id}?tab=history`)}>Open care history</MenuItem>{can("photos") && <MenuItem onSelect={() => router.push(`/patients/${p.id}?tab=photos`)}>Upload photo</MenuItem>}</MenuContent></Menu>
   );
 
   return (
@@ -100,19 +102,31 @@ function Patients() {
           <>
             <div className="hidden overflow-x-auto md:block"><table className="w-full min-w-[960px]">
               <thead className="border-b border-line bg-cloud/50"><tr><Th>Patient</Th><Th>Contact</Th><Th>Preferred provider</Th><Th>Last visit</Th><Th>Next appointment</Th>{can("financials") && <Th>Balance</Th>}<Th>Status</Th><Th /></tr></thead>
-              <tbody className="divide-y divide-line">{slice.map(({ p, last, next, bal }) => (
+              <tbody className="divide-y divide-line">{slice.map(({ p, last, next, bal, fuDue }) => (
                 <tr key={p.id} tabIndex={0} onClick={() => router.push(`/patients/${p.id}`)} onKeyDown={(e) => e.key === "Enter" && router.push(`/patients/${p.id}`)} className="cursor-pointer transition-colors hover:bg-active/50 focus-visible:bg-active/50">
-                  <Td><div className="flex items-center gap-3"><PatientAvatar id={p.id} name={`${p.first} ${p.last}`} size={40} /><div><p className="font-semibold">{p.first} {p.last}</p><p className="text-xs text-muted">{p.id}</p>{(p.tags ?? []).length > 0 && <div className="mt-0.5 flex flex-wrap gap-1">{p.tags!.slice(0, 2).map((t) => <Badge key={t} tone={t === "VIP" ? "peach" : "lavender"} className="py-0 text-[11px]">{t}</Badge>)}</div>}</div></div></Td>
+                  <Td><div className="flex items-center gap-3"><PatientAvatar id={p.id} name={`${p.first} ${p.last}`} size={40} /><div><p className="font-semibold">{p.first} {p.last}</p><p className="text-xs text-muted">{p.id}</p><Flags p={p} fuDue={fuDue} />{(p.tags ?? []).length > 0 && <div className="mt-0.5 flex flex-wrap gap-1">{p.tags!.slice(0, 2).map((t) => <Badge key={t} tone={t === "VIP" ? "peach" : "lavender"} className="py-0 text-[11px]">{t}</Badge>)}</div>}</div></div></Td>
                   <Td><p>{p.phone}</p><p className="text-xs text-muted">{p.email}</p></Td><Td>{refs?.providers.find((x) => x.id === p.providerId)?.short ?? "—"}</Td>
                   <Td>{last ? fmtDate(last) : <span className="text-muted">—</span>}</Td><Td>{next ? <Badge tone={next.date === TODAY ? "mint" : "blue"}><CalendarCheck className="size-3" aria-hidden />{next.date === TODAY ? "Today" : fmtDate(next.date)} · {fmtTime(next.time)}</Badge> : <span className="text-muted">None</span>}</Td>
                   {can("financials") && <Td>{bal > 0 ? <Badge tone="peach">{money(bal)} due</Badge> : <span className="text-muted">—</span>}</Td>}
                   <Td><PStatus s={p.status} /></Td><Td className="text-right">{actions(p)}</Td></tr>))}</tbody></table></div>
-            <ul className="divide-y divide-line md:hidden">{slice.map(({ p, last, next }) => (
+            <ul className="divide-y divide-line md:hidden">{slice.map(({ p, last, next, fuDue }) => (
               <li key={p.id} className="flex items-center gap-1 pr-2"><button onClick={() => router.push(`/patients/${p.id}`)} className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 text-left"><PatientAvatar id={p.id} name={`${p.first} ${p.last}`} size={40} />
-                <div className="min-w-0 flex-1"><p className="font-medium">{p.first} {p.last} <span className="text-xs font-normal text-muted">{p.id}</span></p><p className="text-xs text-muted">Last {last ? fmtDate(last) : "—"} · Next {next ? fmtDate(next.date) : "none"}</p></div><PStatus s={p.status} /></button>{actions(p)}</li>))}</ul>
+                <div className="min-w-0 flex-1"><p className="font-medium">{p.first} {p.last} <span className="text-xs font-normal text-muted">{p.id}</span></p><p className="text-xs text-muted">Last {last ? fmtDate(last) : "—"} · Next {next ? fmtDate(next.date) : "none"}</p><Flags p={p} fuDue={fuDue} /></div><PStatus s={p.status} /></button>{actions(p)}</li>))}</ul>
             <Pagination page={page} pages={pages} onPage={setPage} total={rows.length} />
           </>)}
       </Panel>
     </>
+  );
+}
+
+/** Quiet indicators. A safety alert is shown with its type in words and never only as colour, and apart from relationship tags. */
+function Flags({ p, fuDue }: { p: Patient; fuDue: boolean }) {
+  const a = sortAlerts(p.alerts ?? [])[0]; const n = (p.alerts ?? []).length;
+  if (!a && !fuDue) return null;
+  return (
+    <div className="mt-0.5 flex flex-wrap items-center gap-1">
+      {a && <span title={a.description} className="inline-flex max-w-full items-center gap-1 rounded bg-[#FFF3DF] px-1.5 text-[11px] font-medium leading-5 text-[#7A4B00] ring-1 ring-[#F4DDAA]"><ShieldAlert className="size-3 shrink-0" aria-hidden /><span className="truncate">Alert: {a.type}{n > 1 ? ` +${n - 1}` : ""}</span></span>}
+      {fuDue && <span className="inline-flex items-center gap-1 rounded bg-[#E5F8FB] px-1.5 text-[11px] font-medium leading-5 text-[#0E6577]"><CalendarClock className="size-3" aria-hidden />Follow-up due</span>}
+    </div>
   );
 }

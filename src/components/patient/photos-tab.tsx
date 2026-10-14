@@ -1,5 +1,6 @@
 "use client";
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { Camera, GitCompare } from "lucide-react";
 import { Badge, Button, EmptyState, Modal, Panel, Select } from "@/components/ui";
 import { PhotoThumb } from "@/components/app/photos";
@@ -25,6 +26,8 @@ export function PhotosTab({ p }: { p: Patient }) {
   const picked = sel.map((id) => mine.find((x) => x.id === id)).filter(Boolean) as PhotoAsset[];
   const toggle = (id: string) => setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : s.length >= 2 ? [s[1], id] : [...s, id]));
   const visitIds = [...new Set(mine.map((x) => x.visitId).filter(Boolean))] as string[];
+  const visitOf = (id?: string) => visits?.find((x) => x.id === id);
+  const visitLabel = (ph: PhotoAsset) => { const v = visitOf(ph.visitId); return v ? `${v.type}, ${fmtDate(v.date)}` : "Not linked to a visit"; };
 
   return (
     <div className="space-y-4">
@@ -39,7 +42,7 @@ export function PhotosTab({ p }: { p: Patient }) {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Select sm aria-label="View or area" className="w-40" value={f.view} onChange={(e) => setF({ ...f, view: e.target.value })}><option value="">All views</option>{["Front", "Left profile", "Right profile", "Close-up (eyes)", "Close-up (lips)"].map((v) => <option key={v}>{v}</option>)}</Select>
-            <Select sm aria-label="Visit" className="w-36" value={f.visit} onChange={(e) => setF({ ...f, visit: e.target.value })}><option value="">All visits</option>{visitIds.map((v) => <option key={v} value={v}>{fmtDate(visits?.find((x) => x.id === v)?.date ?? "2026-10-07")}</option>)}</Select>
+            <Select sm aria-label="Visit" className="w-52" value={f.visit} onChange={(e) => setF({ ...f, visit: e.target.value })}><option value="">All visits</option>{visitIds.map((v) => <option key={v} value={v}>{visitOf(v) ? `${fmtDate(visitOf(v)!.date)} · ${visitOf(v)!.type}` : v}</option>)}</Select>
             <Button size="sm" variant="secondary" disabled={picked.length !== 2} onClick={() => setCmp(true)} title={picked.length === 2 ? "" : "Select two photos to compare"}><GitCompare className="size-4" />Compare{picked.length ? ` (${picked.length})` : ""}</Button>
             <Button size="sm" onClick={() => setCapture(true)}><Camera className="size-4" />Capture or upload</Button>
           </div>
@@ -55,7 +58,7 @@ export function PhotosTab({ p }: { p: Patient }) {
                   <label className="absolute left-2 top-2 flex cursor-pointer items-center rounded bg-white/90 p-1 shadow-sm"><input type="checkbox" checked={sel.includes(ph.id)} onChange={() => toggle(ph.id)} aria-label={`Select ${ph.view} ${ph.stage} for comparison`} /></label>
                   <span className={cn("absolute right-2 top-2 rounded px-1.5 py-0.5 text-[11px] font-medium", ph.stage === "Before" ? "bg-white/90 text-slate-700" : ph.stage === "After" ? "bg-primary text-white" : "bg-[#FFF3DF] text-[#7A4B00]")}>{ph.stage}</span>
                 </div>
-                <p className="mt-1.5 text-[13px] font-medium">{ph.view}</p><p className="text-xs text-muted">{fmtDate(ph.date)}{ph.source === "demo" ? " · Demo" : ""}</p>
+                <p className="mt-1.5 text-[13px] font-medium">{ph.view}{ph.area && ph.area !== ph.view ? <span className="font-normal text-muted"> · {ph.area}</span> : null}</p><p className="text-xs text-muted">Captured {fmtDate(ph.date)}{ph.source === "demo" ? " · Demo image" : ""}</p><p className="text-xs text-slate-600">{visitLabel(ph)}</p>
               </li>))}
           </ul>)}
       </Panel>
@@ -68,9 +71,9 @@ export function PhotosTab({ p }: { p: Patient }) {
             <PhotoThumb photo={detail} ar={4 / 5} className="rounded-lg" />
             <dl className="grid grid-cols-[88px_1fr] gap-y-1.5 text-[13px]">
               <dt className="text-muted">Patient ID</dt><dd>{detail.patientId}</dd><dt className="text-muted">Stage</dt><dd>{detail.stage}</dd><dt className="text-muted">View</dt><dd>{detail.view}</dd><dt className="text-muted">Area</dt><dd>{detail.area}</dd>
-              <dt className="text-muted">Captured</dt><dd>{fmtDate(detail.date, true)}</dd><dt className="text-muted">Author</dt><dd>{detail.author}</dd><dt className="text-muted">Visit</dt><dd>{detail.visitId ?? "Not linked"}</dd>
+              <dt className="text-muted">Captured</dt><dd>{fmtDate(detail.date, true)}</dd><dt className="text-muted">Author</dt><dd>{detail.author}</dd><dt className="text-muted">Visit</dt><dd>{detail.visitId ? <>{visitLabel(detail)} · <Link href={`/visits/${detail.visitId}`} className="text-primary hover:underline">Open visit</Link></> : "Not linked to a visit"}</dd>
               <dt className="text-muted">Source</dt><dd>{detail.source === "demo" ? "Demo image" : detail.source === "captured" ? "Captured in app" : "Uploaded"}</dd>
-              <dt className="text-muted">Consent</dt><dd><Badge tone={detail.consent === "Granted" ? "mint" : "peach"}>{detail.consent}</Badge></dd><dt className="text-muted">Notes</dt><dd>{detail.notes || "—"}</dd>
+              <dt className="text-muted">Photo consent</dt><dd><Badge tone={detail.consent === "Granted" ? "mint" : detail.consent === "Not recorded" ? "neutral" : "peach"}>{detail.consent}</Badge><span className="mt-0.5 block text-xs text-muted">Clinical record only. Use in marketing or teaching is a separate permission and is not recorded here.</span></dd><dt className="text-muted">Notes</dt><dd>{detail.notes || "—"}</dd>
             </dl>
           </div>)}
       </Modal>

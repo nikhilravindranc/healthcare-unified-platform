@@ -5,7 +5,7 @@ import { Plus, CalendarClock, AlertTriangle, CalendarDays, CheckCircle2 } from "
 import { Badge, Button, EmptyState, PageHeader, Panel, Select, SkeletonRows, StatGrid, StatTile, Td, Th } from "@/components/ui";
 import { AgentHint, PatientLink } from "@/components/app/bits";
 import { useUI } from "@/components/app/ui-state";
-import { useAction, useFollowUps } from "@/lib/hooks";
+import { useAction, useFollowUps, useVisits } from "@/lib/hooks";
 import { api, fmtDate, TODAY } from "@/lib/db";
 import { agents } from "@/lib/insight";
 import { cn } from "@/lib/utils";
@@ -19,6 +19,7 @@ const match = (t: Tab, f: FU) =>
 
 export default function FollowUpsPage() {
   const { data: fus, isLoading, isError, refetch } = useFollowUps();
+  const { data: visits } = useVisits();
   const ui = useUI();
   const complete = useAction(api.completeFollowUp, "Follow-up completed");
   const [tab, setTab] = useState<Tab>("today");
@@ -52,13 +53,13 @@ export default function FollowUpsPage() {
           : rows.length === 0 ? <EmptyState title={tab === "completed" ? "No completed follow-ups" : tab === "today" ? "No follow-ups due" : "Nothing here"} text="There are no follow-ups requiring attention." /> : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[820px]">
-                <thead className="border-b border-line bg-cloud/50"><tr><Th>Patient</Th><Th>Previous visit</Th><Th>Follow-up type</Th><Th>Due date</Th><Th>Assigned to</Th><Th>Status</Th><Th className="text-right">Actions</Th></tr></thead>
+                <thead className="border-b border-line bg-cloud/50"><tr><Th>Patient</Th><Th>Source visit</Th><Th>Follow-up type and reason</Th><Th>Due date</Th><Th>Assigned to</Th><Th>Status</Th><Th className="text-right">Actions</Th></tr></thead>
                 <tbody className="divide-y divide-line">
                   {rows.map((f) => (
                     <tr key={f.id} className="hover:bg-cloud/40">
                       <Td><PatientLink id={f.patientId} /></Td>
-                      <Td>{f.visitId ? <Link href={`/visits/${f.visitId}`} className="text-primary hover:underline">Open visit</Link> : "—"}</Td>
-                      <Td>{f.type}</Td>
+                      <Td>{(() => { const v = f.visitId ? visits?.find((x) => x.id === f.visitId) : undefined; return v ? <Link href={`/visits/${v.id}`} className="text-primary hover:underline">{fmtDate(v.date, true)}, {v.type}</Link> : f.visitId ? <Link href={`/visits/${f.visitId}`} className="text-primary hover:underline">Open visit</Link> : <span className="text-muted">No source visit</span>; })()}</Td>
+                      <Td><span className="font-medium">{f.type}</span><span className="block max-w-[260px] text-xs text-muted">{f.note ? f.note : "Reason not recorded"}</span></Td>
                       <Td>{f.due === TODAY ? "Today" : fmtDate(f.due, true)}</Td>
                       <Td>{f.assignee}</Td>
                       <Td>{f.status === "Completed" ? <Badge tone="mint">Completed</Badge> : f.due < TODAY ? <Badge tone="red">Overdue</Badge> : f.due === TODAY ? <Badge tone="peach">Due today</Badge> : <Badge>Upcoming</Badge>}</Td>

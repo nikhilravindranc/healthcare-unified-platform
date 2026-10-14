@@ -306,19 +306,20 @@ export function NewPatientPanel({ open, onClose }: { open: boolean; onClose: () 
 export function NewFollowUpPanel({ open, onClose, prefill }: { open: boolean; onClose: () => void; prefill?: { patientId?: string; visitId?: string } }) {
   const { data: patients } = usePatients();
   const create = useAction(api.createFollowUp, "Follow-up added");
-  const [v, setV] = useState({ patientId: "", type: "Post-treatment" as FollowUpType, due: addDays(TODAY, 14), assignee: "Dr. Patel" });
+  const [v, setV] = useState({ patientId: "", type: "Post-treatment" as FollowUpType, due: addDays(TODAY, 14), assignee: "Dr. Patel", note: "" });
   const [err, setErr] = useState("");
-  useEffect(() => { if (open) { setV({ patientId: prefill?.patientId ?? "", type: "Post-treatment", due: addDays(TODAY, 14), assignee: "Dr. Patel" }); setErr(""); } }, [open, prefill]);
+  useEffect(() => { if (open) { setV({ patientId: prefill?.patientId ?? "", type: "Post-treatment", due: addDays(TODAY, 14), assignee: "Dr. Patel", note: "" }); setErr(""); } }, [open, prefill]);
   return (
     <Modal open={open} onOpenChange={(o) => !o && onClose()} title="New follow-up" description="Track a patient who needs to return or be contacted."
       footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button>
-        <Button loading={create.pending} onClick={async () => { if (!v.patientId) return setErr("Select a patient"); await create.run({ ...v, visitId: prefill?.visitId }); onClose(); }}>Add follow-up</Button></>}>
+        <Button loading={create.pending} onClick={async () => { if (!v.patientId) return setErr("Select a patient"); const { note, ...rest } = v; await create.run({ ...rest, note: note.trim() || undefined, visitId: prefill?.visitId }); onClose(); }}>Add follow-up</Button></>}>
       <div className="space-y-4">
         <PatientPicker value={v.patientId} onChange={(id) => { setV({ ...v, patientId: id }); setErr(""); }} patients={patients ?? []} locked={!!prefill?.patientId} lockedId={prefill?.patientId} error={err} />
         <div className="grid grid-cols-2 gap-3">
           <Field label="Type"><Select value={v.type} onChange={(e) => setV({ ...v, type: e.target.value as FollowUpType })}>{["Post-treatment", "Routine review", "Treatment continuation", "Recall", "Other"].map((t) => <option key={t}>{t}</option>)}</Select></Field>
           <Field label="Due date"><Input type="date" value={v.due} onChange={(e) => setV({ ...v, due: e.target.value })} /></Field>
         </div>
+        <Field label="Reason" hint="Optional. Why this person needs to return or be contacted."><Input value={v.note} maxLength={200} onChange={(e) => setV({ ...v, note: e.target.value })} /></Field>
         <Field label="Assigned to"><Select value={v.assignee} onChange={(e) => setV({ ...v, assignee: e.target.value })}>{["Dr. Patel", "Dr. Rao", "Dr. Mehta", "Tom Reyes", "Meera Iyer"].map((t) => <option key={t}>{t}</option>)}</Select></Field>
       </div>
     </Modal>

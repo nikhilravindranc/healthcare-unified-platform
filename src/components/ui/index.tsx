@@ -20,7 +20,7 @@ export function Logo({ variant = "full", height = 28, className }: { variant?: "
 /* ---------------- Button ---------------- */
 const btn = {
   primary: "bg-primary text-white hover:bg-primary-hover",
-  secondary: "bg-white text-ink border border-line hover:bg-cloud",
+  secondary: "bg-white text-primary border border-[#C9DAEE] hover:bg-cloud",
   ghost: "text-ink hover:bg-cloud",
   danger: "bg-danger text-white hover:bg-[#9a3433]",
   soft: "bg-active text-primary hover:bg-[#dcebf8]",

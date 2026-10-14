@@ -1,8 +1,9 @@
 "use client";
+import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import { Plus, Receipt, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { Alert, Badge, Button, ConfirmDialog, EmptyState, Field, Input, Modal, Panel, PanelHeader, Select, SkeletonRows, Td, Th } from "@/components/ui";
+import { Badge, Button, ConfirmDialog, EmptyState, Field, Input, Modal, Panel, PanelHeader, Select, SkeletonRows, Td, Th } from "@/components/ui";
 import { apiC, docTotal, inventory, invoiceBalance, invoicePaid, invoiceStatus, lineTotal, money, patientFinancials, SERVICE_PRICE } from "@/lib/clinical";
 import { useAction, useBilling, useRefs, useRole } from "@/lib/hooks";
 import { fmtDate, TODAY } from "@/lib/db";
@@ -147,9 +148,14 @@ export function FinancialsTab({ p, invoiceId }: { p: Patient; invoiceId?: string
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <dl className="grid flex-1 grid-cols-2 divide-x divide-y divide-line overflow-hidden rounded-xl border border-line bg-white sm:grid-cols-5 sm:divide-y-0">
-          {[["Outstanding balance", money(fin.outstanding)], ["Total paid", money(fin.paid)], ["Deposits and credits", money(fin.deposits + fin.credits)], ["Unpaid invoices", String(fin.unpaid)], ["Last payment", lastPay ? `${money(lastPay.amount)} · ${fmtDate(lastPay.date)}` : "None"]].map(([l, n]) => <div key={l} className="px-4 py-3"><dd className="text-[16px] font-semibold">{n}</dd><dt className="text-xs text-muted">{l}</dt></div>)}
-        </dl>
+        <div className="flex flex-1 flex-wrap items-center gap-x-8 gap-y-2 rounded-xl border border-line bg-white px-4 py-3">
+          <div><p className="text-xs text-muted">Outstanding balance</p><p className={cn("text-[24px] font-semibold leading-tight tabular-nums", fin.outstanding > 0 ? "text-[#7A4B00]" : "text-ink")}>{money(fin.outstanding)}</p><p className="text-xs text-muted">{fin.unpaid === 0 ? "No unpaid invoices" : `${fin.unpaid} unpaid invoice${fin.unpaid === 1 ? "" : "s"}`}</p></div>
+          <dl className="grid grid-cols-[auto_auto] gap-x-4 gap-y-0.5 text-[13px]">
+            <dt className="text-muted">Total paid</dt><dd className="font-medium tabular-nums">{money(fin.paid)}</dd>
+            <dt className="text-muted">Deposits and credits</dt><dd className="font-medium tabular-nums">{money(fin.deposits + fin.credits)}</dd>
+            <dt className="text-muted">Last payment</dt><dd className="font-medium">{lastPay ? `${money(lastPay.amount)} · ${fmtDate(lastPay.date)}` : "None"}</dd>
+          </dl>
+        </div>
         <div className="flex flex-wrap gap-2"><Button variant="secondary" onClick={() => setNewInv(true)}><Plus className="size-4" />New invoice</Button><Button variant="secondary" onClick={() => setDlg({ kind: "deposit" })}>Take deposit</Button><Button onClick={() => setDlg({ kind: "payment" })}>Record payment</Button></div>
       </div>
       <Panel>
@@ -174,7 +180,7 @@ export function FinancialsTab({ p, invoiceId }: { p: Patient; invoiceId?: string
             <tbody className="divide-y divide-line">{pays.map((x) => <tr key={x.id}><Td>{fmtDate(x.date)}</Td><Td className="capitalize">{x.kind}</Td><Td className={x.status === "Reversed" ? "text-muted line-through" : "font-medium"}>{x.kind === "refund" ? "-" : ""}{money(x.amount)}</Td><Td>{x.method}</Td><Td>{x.reference}</Td><Td>{x.invoiceId ?? "—"}</Td><Td><Badge tone={tone(x.status)}>{x.status}</Badge></Td>
               <Td className="text-right">{x.status === "Posted" && can("refunds") && <Button size="sm" variant="ghost" onClick={() => setRev(x)}>Reverse</Button>}</Td></tr>)}</tbody></table></div>)}
       </Panel>
-      <Alert tone="info" title="Billing boundary">Payments here are recorded manually; no card processing is connected. When EVOQ Billing is connected, it becomes the source of truth for invoices and payments to avoid duplicates.</Alert>
+      <p className="text-xs text-muted">Payments here are recorded manually. No card processing and no EVOQ Billing connection exist in this demo. When EVOQ Billing is connected it becomes the source of truth for invoices and payments, so these records are not duplicated.</p>
 
       <PaymentDialog p={p} open={!!dlg} kind={dlg?.kind ?? "payment"} invoice={dlg?.invoice} onClose={() => setDlg(null)} />
       <NewInvoiceDialog p={p} open={newInv} onClose={() => setNewInv(false)} />

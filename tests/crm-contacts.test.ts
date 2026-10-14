@@ -58,7 +58,7 @@ test("first-touch source uses the earliest enquiry, then the recorded referral, 
 
 test("consent dates and sources are never invented", () => {
   assert.deepEqual(deriveConsent({ marketingConsent: true }), { status: "granted" });
-  assert.deepEqual(deriveConsent({ marketingConsent: false }), { status: "withdrawn" });
+  assert.deepEqual(deriveConsent({ marketingConsent: false }), { status: "not-granted" });
   assert.deepEqual(deriveConsent({}), { status: "not-recorded" });          // a missing value is not read as consent
   assert.deepEqual(deriveConsent(), { status: "not-recorded" });
   for (const c of build({ patients: [pat("P-1", { marketingConsent: true })], enquiries: [enq("E-1")] })) { assert.equal(c.consent.recordedAt, undefined); assert.equal(c.consent.source, undefined); }
@@ -128,14 +128,14 @@ test("original demo patients no longer carry an invented acquisition source", ()
   assert.equal(list.filter((c) => c.firstTouch.basis === "patient-referral").length, 1);   // nobody else is credited from a referral field
 });
 
-test("only explicitly recorded demo consent is shown as granted or withdrawn; everything else is not recorded", () => {
+test("only explicitly recorded demo consent is shown as granted or not granted (never as withdrawn); everything else is not recorded", () => {
   assert.equal(patients.filter((p) => p.marketingConsent === true).length, 7);     // seven recorded "yes" decisions, set explicitly in the demo seed
   assert.equal(patients.filter((p) => p.marketingConsent === false).length, 2);    // two recorded "no" decisions
   assert.equal(patients.filter((p) => p.marketingConsent === undefined).length, patients.length - 9);
   assert.ok(patients.filter((p) => p.id.startsWith("P-104")).every((p) => p.marketingConsent === undefined));   // converted patients: no consent was ever asked
   const list = buildContacts({ patients, enquiries: demoEnquiries, appointments, visits: [], today: TODAY });
   const by = (s: string) => list.filter((c) => c.consent.status === s);
-  assert.deepEqual([by("granted").length, by("withdrawn").length, by("not-recorded").length], [7, 2, 51]);
+  assert.deepEqual([by("granted").length, by("not-granted").length, by("not-recorded").length], [7, 2, 51]);
   assert.ok(by("granted").some((c) => c.patientId === "P-10248"));
   assert.ok(list.filter((c) => c.kind === "enquiry-only").every((c) => c.consent.status === "not-recorded"));   // an enquiry is never consent
 });

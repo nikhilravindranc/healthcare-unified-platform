@@ -3,10 +3,11 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Download, CalendarCheck, CheckCircle2, CalendarX, UserX, Repeat } from "lucide-react";
 import { toast } from "sonner";
-import { Badge, Button, PageHeader, Panel, PanelHeader, Select, Skeleton, StatGrid, StatTile, Td, Th } from "@/components/ui";
+import { Alert, Badge, Button, PageHeader, Panel, PanelHeader, Select, Skeleton, StatGrid, StatTile, Td, Th } from "@/components/ui";
 import { AgentHint } from "@/components/app/bits";
 import { Denied } from "@/components/patient/shared";
-import { useBilling, useInventory, useRefs, useRole } from "@/lib/hooks";
+import { useAppointments, useBilling, useFollowUps, useInventory, useRefs, useRole } from "@/lib/hooks";
+import { appointmentCounts, followUpState } from "@/lib/report-records";
 import { docTotal, invoiceBalance, invoicePaid, invStatus, money } from "@/lib/clinical";
 import { addDays, fmtDate, TODAY } from "@/lib/db";
 
@@ -16,11 +17,15 @@ const SHARE: Record<string, number> = { pat: 0.42, rao: 0.33, meh: 0.25 };
 const SVC_SHARE: Record<string, number> = { consult: 0.17, followup: 0.2, skin: 0.15, inject: 0.14, physio: 0.15, dental: 0.07, review: 0.12 };
 const LOC_SHARE: Record<string, number> = { dt: 0.62, ws: 0.38 };
 
+const DEMO = <Badge tone="peach">Illustrative</Badge>;
+
 export default function ReportsPage() {
   const { data: refs } = useRefs();
   const { can } = useRole();
   const { data: bill } = useBilling();
   const { data: inv } = useInventory();
+  const { data: appts } = useAppointments();
+  const { data: fus } = useFollowUps();
   const [f, setF] = useState({ range: "30", provider: "", service: "", location: "" });
   const [busy, setBusy] = useState(true);
   useEffect(() => { const t = setTimeout(() => setBusy(false), 450); return () => clearTimeout(t); }, []);
@@ -47,17 +52,20 @@ export default function ReportsPage() {
     return { days, total: sum("total"), done: sum("done"), ns: sum("ns"), ca: sum("ca"), provs, svcs, newP: Math.round(n * 1.4 * scale + 3), ret: Math.round(n * 9 * scale), fu: Math.round(78 + rnd(n) * 8) };
   }, [f, refs]);
 
+  const rec = useMemo(() => appointmentCounts(appts ?? [], { from: addDays(TODAY, -(Number(f.range) - 1)), to: TODAY, provider: f.provider, service: f.service, location: f.location }), [appts, f]);
+  const fu = useMemo(() => followUpState(fus ?? [], TODAY), [fus]);
+
   const exportCsv = () => {
-    const rows = ["date,appointments,completed,cancellations,no_shows", ...d.days.map((x) => `${x.date},${x.total},${x.done},${x.ca},${x.ns}`)].join("\n");
+    const rows = ["date,appointments,completed,cancellations,no_shows", ...rec.days.map((x) => `${x.date},${x.total},${x.completed},${x.cancelled},${x.noShow}`)].join("\n");
     const url = URL.createObjectURL(new Blob([rows], { type: "text/csv" }));
-    const a = document.createElement("a"); a.href = url; a.download = `practice-report-${TODAY}.csv`; a.click(); URL.revokeObjectURL(url);
-    toast.success("Report exported");
+    const a = document.createElement("a"); a.href = url; a.download = `appointment-records-${TODAY}.csv`; a.click(); URL.revokeObjectURL(url);
+    toast.success("Exported the appointment records in this range. Illustrative figures are not included.");
   };
 
   if (!can("reports")) return <Denied what="reports" />;
   return (
     <>
-      <PageHeader title="Reports" subtitle="Operational performance of the practice" actions={<><Link href="/agents"><Button variant="ghost">Agents</Button></Link><Button variant="secondary" onClick={exportCsv}><Download className="size-4" />Export</Button></>} />
+      <PageHeader title="Reports" subtitle="Operational performance of the practice" actions={<><Link href="/agents"><Button variant="ghost">Agents</Button></Link><Button variant="secondary" onClick={exportCsv}><Download className="size-4" />Export records</Button></>} />
       <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="Report filters">
         <Select sm className="w-40" aria-label="Date range" value={f.range} onChange={(e) => setF({ ...f, range: e.target.value })}><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option></Select>
         <Select sm className="w-40" aria-label="Provider" value={f.provider} onChange={(e) => setF({ ...f, provider: e.target.value })}><option value="">All providers</option>{refs?.providers.map((p) => <option key={p.id} value={p.id}>{p.short}</option>)}</Select>
@@ -65,40 +73,44 @@ export default function ReportsPage() {
         <Select sm className="w-48" aria-label="Location" value={f.location} onChange={(e) => setF({ ...f, location: e.target.value })}><option value="">All locations</option>{refs?.locations.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select>
         <span className="self-center text-xs text-muted">{fmtDate(d.days[0].date)} – {fmtDate(TODAY, true)}</span>
       </div>
-      <AgentHint agent={5} text="Practice Insights Agent: no-shows are highest on Mondays. Reminders the day before may help." action="Open agent" href="/agents?agent=insights" />
+      <AgentHint agent={5} text="Practice Insights Agent (rule-based demo) reviews no-shows and follow-ups from the records." action="Open agent" href="/agents?agent=insights" />
 
       {busy ? <div className="grid gap-4"><Skeleton className="h-24" /><Skeleton className="h-72" /></div> : (
         <>
-          <StatGrid cols={5}>
-            {([["Appointments", d.total, CalendarCheck, "blue"], ["Completed", d.done, CheckCircle2, "mint"], ["Cancellations", d.ca, CalendarX, "peach"], ["No-shows", d.ns, UserX, "red"], ["Follow-up completion", `${d.fu}%`, Repeat, "lavender"]] as const).map(([l, n, icon, tone]) => <StatTile key={l} label={l} value={typeof n === "number" ? n.toLocaleString() : n} icon={icon} tone={tone} />)}
-          </StatGrid>
-          <div className="grid gap-5 lg:grid-cols-2">
-            <Panel><PanelHeader title="Appointment trend" sub="Daily appointments and completed" />
+          <section aria-labelledby="rec-h" className="mb-5">
+            <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-4"><h2 id="rec-h" className="text-[15px] font-semibold">From the records in this app</h2><p className="text-xs text-muted">Appointment records dated {fmtDate(d.days[0].date)} – {fmtDate(TODAY, true)}. Future bookings are not counted. <Link href="/calendar" className="font-medium text-primary hover:underline">Open calendar</Link></p></div>
+            <StatGrid cols={5}>
+              {([["Appointments", rec.total, CalendarCheck, "blue", `${rec.openOrAttending} still open or in progress`], ["Completed", rec.completed, CheckCircle2, "mint", "Marked completed"], ["Cancellations", rec.cancelled, CalendarX, "peach", "Did not take place"], ["No-shows", rec.noShow, UserX, "red", "Did not attend"], ["Follow-ups overdue", fu.overdue, Repeat, "lavender", `${fu.open} open now, ${fu.completed} completed`]] as const).map(([l, n, icon, tone, hint]) => <StatTile key={l} label={l} value={n.toLocaleString()} hint={hint} icon={icon} tone={tone} />)}
+            </StatGrid>
+          </section>
+          {can("financials") && bill && (
+            <Panel className="mb-5"><PanelHeader title="Billing summary" sub="Invoices, collections, refunds and discounts across all patients" />
+              <dl className="grid grid-cols-2 divide-x divide-y divide-line sm:grid-cols-5 sm:divide-y-0">{[["Invoices", String(bill.invoices.filter((i) => i.status !== "Void").length)], ["Invoiced", money(bill.invoices.filter((i) => i.status !== "Void").reduce((s, i) => s + docTotal(i), 0))], ["Collected", money(bill.invoices.reduce((s, i) => s + invoicePaid(i.id), 0))], ["Outstanding", money(bill.invoices.reduce((s, i) => s + invoiceBalance(i), 0))], ["Refunds", money(bill.payments.filter((p) => p.kind === "refund" && p.status === "Posted").reduce((s, p) => s + p.amount, 0))]].map(([l, n]) => <div key={l} className="px-4 py-3"><dd className="text-[16px] font-semibold">{n}</dd><dt className="text-xs text-muted">{l}</dt></div>)}</dl>
+              <p className="border-t border-line px-4 py-2 text-xs text-muted">Discounts given: {money(bill.invoices.reduce((s, i) => s + i.lines.reduce((t, l) => t + l.qty * l.unit * (l.discount / 100), 0), 0))}. Based on the demo invoices and payments in this app, across all dates and filters. Not a substitute for accounting reports.</p></Panel>)}
+          {can("inventory") && inv && (
+            <Panel className="mb-5"><PanelHeader title="Inventory" sub="Stock status and usage recorded from completed visits" />
+              <ul className="divide-y divide-line">{inv.inventory.map((i) => { const used = inv.moves.filter((m) => m.itemId === i.id && m.delta < 0).reduce((s, m) => s + -m.delta, 0); return <li key={i.id} className="flex flex-wrap items-center justify-between gap-x-4 px-4 py-2.5 text-[13px]"><span className="font-medium">{i.name}</span><span className="text-muted">{i.qty} {i.unit} in stock · {used} {i.unit} used</span><Badge tone={invStatus(i) === "Active" ? "mint" : invStatus(i) === "Low" ? "peach" : "red"}>{invStatus(i)}</Badge></li>; })}</ul></Panel>)}
+          <div className="mb-3"><Alert tone="warn" title="The sections below are illustrative demo figures">They are generated from your filters and do not come from the records above. Do not use them to judge the practice. They will be replaced when reporting is connected to real data.</Alert></div>
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-2">
+            <Panel><PanelHeader title="Appointment trend" action={DEMO} sub="Daily appointments and completed" />
               <div className="p-4"><LineChart label="Appointment trend" days={d.days.map((x) => x.date)} series={[{ name: "Appointments", color: "#2867B2", v: d.days.map((x) => x.total) }, { name: "Completed", color: "#7ACFC5", v: d.days.map((x) => x.done) }]} /></div></Panel>
-            <Panel><PanelHeader title="No-show trend" sub="Daily no-shows and cancellations" />
+            <Panel><PanelHeader title="No-show trend" action={DEMO} sub="Daily no-shows and cancellations" />
               <div className="p-4"><LineChart label="No-show trend" days={d.days.map((x) => x.date)} series={[{ name: "No-shows", color: "#B4403F", v: d.days.map((x) => x.ns) }, { name: "Cancellations", color: "#9A9CD6", v: d.days.map((x) => x.ca) }]} /></div></Panel>
-            <Panel><PanelHeader title="Provider utilization" sub="Booked time as a share of available time" />
+            <Panel><PanelHeader title="Provider utilization" action={DEMO} sub="Booked time as a share of available time" />
               <ul className="space-y-4 p-4">{d.provs.map((p) => (
                 <li key={p.id}><div className="mb-1 flex justify-between text-[13px]"><span className="font-medium">{p.name}</span><span>{p.util}%</span></div>
                   <div className="h-2 rounded-full bg-cloud" role="img" aria-label={`${p.name} utilization ${p.util}%`}><div className="h-2 rounded-full bg-primary" style={{ width: `${p.util}%` }} /></div></li>))}</ul></Panel>
-            <Panel><PanelHeader title="Service volume" />
+            <Panel><PanelHeader title="Service volume" action={DEMO} />
               <ul className="space-y-2.5 p-4">{d.svcs.map((s) => (
                 <li key={s.name} className="grid grid-cols-[150px_1fr_40px] items-center gap-3 text-[13px]"><span className="truncate">{s.name}</span>
                   <div className="h-2 rounded-full bg-cloud"><div className="h-2 rounded-full bg-cyan" style={{ width: `${(s.n / (d.svcs[0].n || 1)) * 100}%` }} /></div><span className="text-right tabular-nums">{s.n}</span></li>))}</ul></Panel>
-            <Panel className="lg:col-span-2"><PanelHeader title="Provider activity" />
-              <table className="w-full"><thead className="border-b border-line bg-cloud/50"><tr><Th>Provider</Th><Th>Appointments</Th><Th>Completed</Th><Th>No-shows</Th><Th>Utilization</Th></tr></thead>
-                <tbody className="divide-y divide-line">{d.provs.map((p) => <tr key={p.id}><Td className="font-medium">{p.name}</Td><Td>{p.total}</Td><Td>{p.done}</Td><Td>{p.ns}</Td><Td>{p.util}%</Td></tr>)}</tbody></table></Panel>
-            <Panel className="lg:col-span-2"><PanelHeader title="Patient activity" />
+            <Panel className="lg:col-span-2"><PanelHeader title="Provider activity" action={DEMO} />
+              <div className="overflow-x-auto"><table className="w-full min-w-[480px]"><thead className="border-b border-line bg-cloud/50"><tr><Th>Provider</Th><Th>Appointments</Th><Th>Completed</Th><Th>No-shows</Th><Th>Utilization</Th></tr></thead>
+                <tbody className="divide-y divide-line">{d.provs.map((p) => <tr key={p.id}><Td className="font-medium">{p.name}</Td><Td>{p.total}</Td><Td>{p.done}</Td><Td>{p.ns}</Td><Td>{p.util}%</Td></tr>)}</tbody></table></div></Panel>
+            <Panel className="lg:col-span-2"><PanelHeader title="Patient activity" action={DEMO} />
               <dl className="grid grid-cols-3 divide-x divide-line text-center">{[["New patients", d.newP], ["Returning visits", d.ret], ["Follow-ups completed", `${d.fu}%`]].map(([l, n]) => <div key={l} className="px-4 py-4"><dd className="text-xl font-semibold">{n}</dd><dt className="text-xs text-muted">{l}</dt></div>)}</dl></Panel>
           </div>
-          {can("financials") && bill && (
-            <Panel className="mt-5"><PanelHeader title="Billing summary" sub="Invoices, collections, refunds and discounts across all patients" />
-              <dl className="grid grid-cols-2 divide-x divide-y divide-line sm:grid-cols-5 sm:divide-y-0">{[["Invoices", String(bill.invoices.filter((i) => i.status !== "Void").length)], ["Invoiced", money(bill.invoices.filter((i) => i.status !== "Void").reduce((s, i) => s + docTotal(i), 0))], ["Collected", money(bill.invoices.reduce((s, i) => s + invoicePaid(i.id), 0))], ["Outstanding", money(bill.invoices.reduce((s, i) => s + invoiceBalance(i), 0))], ["Refunds", money(bill.payments.filter((p) => p.kind === "refund" && p.status === "Posted").reduce((s, p) => s + p.amount, 0))]].map(([l, n]) => <div key={l} className="px-4 py-3"><dd className="text-[16px] font-semibold">{n}</dd><dt className="text-xs text-muted">{l}</dt></div>)}</dl>
-              <p className="border-t border-line px-4 py-2 text-xs text-muted">Discounts given: {money(bill.invoices.reduce((s, i) => s + i.lines.reduce((t, l) => t + l.qty * l.unit * (l.discount / 100), 0), 0))}. Based on posted records; not a substitute for accounting reports.</p></Panel>)}
-          {can("inventory") && inv && (
-            <Panel className="mt-5"><PanelHeader title="Inventory" sub="Stock status and usage recorded from completed visits" />
-              <ul className="divide-y divide-line">{inv.inventory.map((i) => { const used = inv.moves.filter((m) => m.itemId === i.id && m.delta < 0).reduce((s, m) => s + -m.delta, 0); return <li key={i.id} className="flex items-center justify-between px-4 py-2.5 text-[13px]"><span className="font-medium">{i.name}</span><span className="text-muted">{i.qty} {i.unit} in stock · {used} {i.unit} used</span><Badge tone={invStatus(i) === "Active" ? "mint" : invStatus(i) === "Low" ? "peach" : "red"}>{invStatus(i)}</Badge></li>; })}</ul></Panel>)}
-          <p className="mt-4 text-xs text-muted">Appointment charts are illustrative demo data generated from your filters. Billing and inventory figures come from live records. Data as of Oct 7, 2026, 10:20 AM.</p>
+          <p className="mt-4 text-xs text-muted">Record counts, billing and inventory come from the demo records in this app, as of the demo date {fmtDate(TODAY, true)}. Charts, utilization, service volume, provider activity and patient activity are illustrative.</p>
         </>
       )}
     </>

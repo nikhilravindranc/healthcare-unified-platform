@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   BarChart3, Bell, CalendarDays, ChevronsLeft, ChevronsRight, HelpCircle, LayoutGrid,
   Layers, LogOut, MapPin, MoreHorizontal, Plus, Repeat, Search, Settings, Sparkles, Stethoscope, UserRound, Users,
-  Inbox, CalendarPlus, UserPlus, FilePlus2, BellPlus, Bot, Package, FileText, ChevronDown, ShieldCheck, type LucideIcon,
+  Inbox, CalendarPlus, UserPlus, FilePlus2, BellPlus, Bot, Package, FileText, ChevronDown, ShieldCheck, ClipboardCheck, Contact, CalendarCheck, Megaphone, LineChart, type LucideIcon,
 } from "lucide-react";
 import { Avatar, Logo, Menu, MenuContent, MenuItem, MenuLabel, MenuSep, MenuTrigger, Skeleton } from "@/components/ui";
 import { auth, useSession } from "@/lib/auth";
@@ -23,33 +23,42 @@ import { GuidePanel } from "./guide";
 import { CheckoutDialog } from "./checkout";
 import { toast } from "sonner";
 import { Denied } from "@/components/patient/shared";
-import { GROWTH_NAV, moduleEnabled, SWITCHER_MODULES } from "@/platform/modules";
+import { moduleEnabled, type ModuleDef } from "@/platform/modules";
 import { useSettings } from "@/lib/settings";
 
 const CLINICAL = ["/overview", "/calendar", "/patients", "/visits", "/follow-ups", "/agents", "/front-desk"];
-type NavItem = { href: string; label: string; icon: LucideIcon; perm?: PermKey | PermKey[] };
-const MAIN: NavItem[] = [
+type NavItem = { href: string; label: string; icon: LucideIcon; perm?: PermKey | PermKey[]; module?: ModuleDef["id"] };
+/** The sidebar follows the clinic's day: running the clinic, then winning patients, then running the practice. */
+const CLINIC: NavItem[] = [
   { href: "/overview", label: "Today", icon: LayoutGrid, perm: "patients" },
   { href: "/calendar", label: "Calendar", icon: CalendarDays, perm: "patients" },
-  { href: "/patients", label: "Patients", icon: Users, perm: "patients" },
+  { href: "/front-desk", label: "Front desk", icon: ClipboardCheck, perm: "patients" },
   { href: "/visits", label: "Visits", icon: Stethoscope, perm: "patients" },
-  { href: "/enquiries", label: "Enquiries", icon: Inbox, perm: ["enquiries", "enquiries_view"] },
+  { href: "/patients", label: "Patients", icon: Users, perm: "patients" },
   { href: "/follow-ups", label: "Follow-ups", icon: Repeat, perm: "patients" },
-  { href: "/reports", label: "Reports", icon: BarChart3, perm: "reports" },
+];
+const ACQUISITION: NavItem[] = [
+  { href: "/enquiries", label: "Enquiries", icon: Inbox, perm: ["enquiries", "enquiries_view"] },
+  { href: "/crm", label: "Contacts", icon: Contact, perm: "crm", module: "crm" },
+  { href: "/booking", label: "Online booking", icon: CalendarCheck, perm: ["booking", "booking_view"], module: "booking" },
+  { href: "/campaigns", label: "Campaigns", icon: Megaphone, perm: ["campaigns", "insights"], module: "campaigns" },
+  /** Not in the proposed list, but kept so Marketing Insights stays reachable (it is the Marketing role's landing page). */
+  { href: "/marketing-insights", label: "Marketing insights", icon: LineChart, perm: "insights" },
 ];
 const PRACTICE: NavItem[] = [
+  { href: "/reports", label: "Reports", icon: BarChart3, perm: "reports" },
   { href: "/practice/team", label: "Team", icon: UserRound, perm: "config" },
   { href: "/practice/services", label: "Services & treatments", icon: Layers, perm: "config" },
   { href: "/practice/inventory", label: "Inventory", icon: Package, perm: "inventory" },
   { href: "/practice/locations", label: "Locations & rooms", icon: MapPin, perm: "config" },
-  { href: "/practice/forms", label: "Forms", icon: FileText, perm: "config" },
+  { href: "/practice/forms", label: "Forms & documents", icon: FileText, perm: "config" },
 ];
 
 function NavLink({ item, collapsed, active }: { item: NavItem; collapsed: boolean; active: boolean }) {
   return (
     <Link href={item.href} title={collapsed ? item.label : undefined} aria-current={active ? "page" : undefined}
-      className={cn("flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-[13.5px] font-medium transition-colors", active ? "bg-active text-primary" : "text-slate-600 hover:bg-cloud hover:text-ink", collapsed ? "justify-center" : "justify-start")}>
-      <item.icon className="size-[18px] shrink-0" strokeWidth={1.8} aria-hidden />
+      className={cn("flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-[13.5px] font-medium transition-colors", active ? "bg-selected text-primary" : "text-ink hover:bg-cloud", collapsed ? "justify-center" : "justify-start")}>
+      <item.icon className={cn("size-[18px] shrink-0", active ? "text-primary" : "text-muted")} strokeWidth={1.8} aria-hidden />
       <span className={collapsed ? "sr-only" : ""}>{item.label}</span>
     </Link>
   );
@@ -72,7 +81,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { data: notes } = useNotifications();
   const { role, can } = useRole();
   const st = useSettings();
-  const allowed = (i: NavItem) => !i.perm || (Array.isArray(i.perm) ? i.perm.some(can) : can(i.perm));
+  const allowed = (i: NavItem) => (!i.perm || (Array.isArray(i.perm) ? i.perm.some(can) : can(i.perm))) && (!i.module || moduleEnabled(i.module, st.modules));
   const markRead = useAction(api.markNotifications);
 
   useEffect(() => { if (session === null) router.replace("/sign-in"); }, [session, router]);
@@ -103,8 +112,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="p-8" role="status" aria-label="Loading"><Skeleton className="h-8 w-48" /><Skeleton className="mt-6 h-64 w-full" /></div>
   );
 
-  const modules: NavItem[] = GROWTH_NAV.filter((m) => m.perms.some(can) && (!m.module || moduleEnabled(m.module, st.modules))).map((m) => ({ href: m.href, label: m.label, icon: m.icon }));
-  const switcher = SWITCHER_MODULES.filter((m) => m.perms?.some(can) && moduleEnabled(m.id, st.modules));
+  const groups = [{ label: "Clinic", items: CLINIC.filter(allowed) }, { label: "Patient acquisition", items: ACQUISITION.filter(allowed) }, { label: "Practice management", items: PRACTICE.filter(allowed) }].filter((g) => g.items.length > 0);
+  const modules = ACQUISITION.filter(allowed);
   /** Patient-facing pages need the "patients" permission, so roles like Marketing never reach patient records via a URL. */
   const clinicalBlocked = !can("patients") && CLINICAL.some((c) => path === c || path.startsWith(c + "/"));
   const unread = notes?.filter((n) => !n.read).length ?? 0;
@@ -118,40 +127,30 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <aside className={cn("fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-line bg-white md:flex", collapsed ? "w-[68px]" : "w-[232px]")}>
         <div className={cn("flex h-16 items-center border-b border-line px-3", collapsed ? "justify-center" : "justify-start px-4")}>
           <span className={collapsed ? "" : "hidden"}><Logo variant="icon" height={34} /></span>
-          <span className={collapsed ? "hidden" : "block"}><Logo height={26} /></span>
+          <span className={cn("flex-col leading-none", collapsed ? "hidden" : "flex")}><Logo height={24} /><span className="mt-1 text-[11px] font-medium text-muted">Practice Management</span></span>
         </div>
         <button onClick={toggle} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!collapsed}
           className="absolute -right-3 top-[52px] z-40 grid size-6 place-items-center rounded-full border border-line bg-white text-muted shadow-sm hover:bg-cloud hover:text-primary">
           {collapsed ? <ChevronsRight className="size-3.5" /> : <ChevronsLeft className="size-3.5" />}
         </button>
         <nav aria-label="Primary" className="scroll-thin flex-1 space-y-0.5 overflow-y-auto p-3">
-          <p className={cn("px-2.5 pb-1 text-[11px] font-medium uppercase tracking-wider text-muted", collapsed ? "sr-only" : "")}>Clinic</p>
-          {MAIN.filter(allowed).map((i) => <NavLink key={i.href} item={i} collapsed={collapsed} active={isActive(i.href)} />)}
-          {PRACTICE.some(allowed) && <><p className={cn("px-2.5 pb-1 pt-5 text-[11px] font-medium uppercase tracking-wider text-muted", collapsed ? "sr-only" : "")}>Practice</p>
-          <div className={cn("my-3 h-px bg-line", collapsed ? "" : "hidden")} /></>}
-          {PRACTICE.filter(allowed).map((i) => <NavLink key={i.href} item={i} collapsed={collapsed} active={isActive(i.href)} />)}
-          {modules.length > 0 && (
-            <>
-              <p className={cn("px-2.5 pb-1 pt-5 text-[11px] font-medium uppercase tracking-wider text-muted", collapsed ? "sr-only" : "")}>Growth &amp; Engagement</p>
-              <div className={cn("my-3 h-px bg-line", collapsed ? "" : "hidden")} />
-              {modules.map((i) => <NavLink key={i.href} item={i} collapsed={collapsed} active={isActive(i.href)} />)}
-            </>
-          )}
+          {groups.map((g, gi) => (
+            <div key={g.label} className="space-y-0.5">
+              <p className={cn("px-2.5 pb-1 text-[11px] font-medium uppercase tracking-wider text-muted", gi > 0 ? "pt-5" : "", collapsed ? "sr-only" : "")}>{g.label}</p>
+              {gi > 0 && <div className={cn("my-3 h-px bg-line", collapsed ? "" : "hidden")} />}
+              {g.items.map((i) => <NavLink key={i.href} item={i} collapsed={collapsed} active={isActive(i.href)} />)}
+            </div>
+          ))}
         </nav>
         <div className="space-y-0.5 border-t border-line p-3">
           {can("settings") && <NavLink item={{ href: "/practice/settings", label: "Settings", icon: Settings }} collapsed={collapsed} active={isActive("/practice/settings")} />}
-          <button onClick={() => setGuideOpen(true)} className={cn("flex h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-[13.5px] font-medium text-slate-600 hover:bg-cloud", collapsed ? "justify-center" : "justify-start")}>
-            <HelpCircle className="size-[18px]" strokeWidth={1.8} aria-hidden /><span className={collapsed ? "sr-only" : ""}>Help</span>
+          <button onClick={() => setGuideOpen(true)} className={cn("flex h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-[13.5px] font-medium text-ink hover:bg-cloud", collapsed ? "justify-center" : "justify-start")}>
+            <HelpCircle className="size-[18px] text-muted" strokeWidth={1.8} aria-hidden /><span className={collapsed ? "sr-only" : ""}>Help</span>
           </button>
-          <div className={cn("flex items-center gap-2.5 px-1 pt-2", collapsed ? "justify-center" : "justify-start")}>
-            <Avatar name={session.name} size={30} />
-            <div className={cn("min-w-0 flex-1", collapsed ? "hidden" : "block")}><p className="truncate text-[13px] font-medium">{session.name}</p><p className="truncate text-xs text-muted">{session.practice}</p></div>
-
-          </div>
         </div>
       </aside>
 
-      <div className={cn(collapsed ? "md:pl-[68px]" : "md:pl-[232px]")}>
+      <div className={cn("min-h-screen bg-cloud", collapsed ? "md:pl-[68px]" : "md:pl-[232px]")}>
         {/* Top bar */}
         <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-line bg-white/95 px-4 backdrop-blur lg:px-8">
           <div className="md:hidden"><Logo variant="icon" height={32} /></div>
@@ -159,8 +158,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Search className="size-4 shrink-0" aria-hidden /><span className="truncate">Search patients, appointments...</span>
             <kbd className="ml-auto hidden rounded border border-line bg-white px-1.5 text-[11px] lg:block">Ctrl K</kbd>
           </button>
-          <button onClick={() => ui.evi()} className="hidden h-10 items-center gap-2 rounded-lg border border-line px-3 text-sm font-medium text-primary hover:bg-active xl:flex xl:min-w-64"><Sparkles className="size-4" aria-hidden />Ask EVI about your practice...</button>
-          <button onClick={() => ui.evi()} aria-label="Ask EVI" className="grid size-10 place-items-center rounded-lg border border-line text-primary hover:bg-active xl:hidden"><Sparkles className="size-4" /></button>
+          <button onClick={() => ui.evi()} className="hidden h-10 items-center gap-2 rounded-lg border border-line px-3 text-sm font-medium text-primary hover:bg-selected xl:flex xl:min-w-64"><Sparkles className="size-4" aria-hidden />Ask EVI about your practice...</button>
+          <button onClick={() => ui.evi()} aria-label="Ask EVI" className="grid size-10 place-items-center rounded-lg border border-line text-primary hover:bg-selected xl:hidden"><Sparkles className="size-4" /></button>
           <div className="ml-auto flex items-center gap-1.5">
             <Menu>
               <MenuTrigger asChild><button className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-primary px-3.5 text-sm font-medium text-white hover:bg-primary-hover"><Plus className="size-4" aria-hidden /><span className="hidden sm:inline">New</span><span className="sr-only sm:hidden">New</span></button></MenuTrigger>
@@ -196,10 +195,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </MenuContent>
             </Menu>
             <Menu>
-              <MenuTrigger asChild><button aria-label="Account menu" className="flex items-center gap-2 rounded-lg px-1.5 py-1 hover:bg-cloud"><Avatar name={session.name} size={34} /><span className="hidden text-left leading-tight lg:block"><span className="block text-[13px] font-medium">{session.name.replace("Aarav ", "")}</span><span className="block text-xs text-muted">Main Clinic</span></span><ChevronDown className="hidden size-4 text-muted lg:block" /></button></MenuTrigger>
+              <MenuTrigger asChild><button aria-label="Account menu" className="flex items-center gap-2 rounded-lg px-1.5 py-1 hover:bg-cloud"><Avatar name={session.name} size={34} /><span className="hidden text-left leading-tight lg:block"><span className="block text-[13px] font-medium">{session.name.replace("Aarav ", "")}</span><span className="block text-xs text-muted">{st.clinicName}</span></span><ChevronDown className="hidden size-4 text-muted lg:block" /></button></MenuTrigger>
               <MenuContent>
                 <div className="px-2.5 py-2"><p className="text-sm font-medium">{session.name}</p><p className="text-xs text-muted">{session.email}</p></div>
-                {switcher.length > 0 && (<><MenuSep /><MenuLabel>Applications</MenuLabel>{switcher.map((m) => <MenuItem key={m.id} onSelect={() => router.push(m.href)}><m.icon className="size-4 text-muted" />{m.label}</MenuItem>)}</>)}
                 <MenuSep />
                 <MenuLabel>View as role (demo)</MenuLabel>
                 {(Object.keys(ROLE_PERMS) as Role[]).map((r) => <MenuItem key={r} onSelect={() => { saveRole(r); toast.success(`Now viewing as ${r}`); router.push("/overview"); }}><ShieldCheck className={cn("size-4", r === role ? "text-primary" : "text-muted")} />{r}{r === role && <span className="ml-auto text-xs text-primary">Current</span>}</MenuItem>)}
@@ -223,7 +221,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <Menu>
           <MenuTrigger asChild><button className="flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium text-muted"><MoreHorizontal className="size-5" aria-hidden />More</button></MenuTrigger>
           <MenuContent side="top" align="end">
-            {[...(can("patients") ? [{ href: "/follow-ups", label: "Follow-ups", icon: Repeat }, { href: "/agents", label: "EVI agents", icon: Bot }] : []), ...(can("reports") ? [{ href: "/reports", label: "Reports", icon: BarChart3 }] : []), ...(can("enquiries") || can("enquiries_view") ? [{ href: "/enquiries", label: "Enquiries", icon: Inbox }] : []), ...PRACTICE.filter(allowed), ...modules, { href: "/practice/settings", label: "Settings", icon: Settings }].map((i) => (
+            {[...(can("patients") ? [{ href: "/front-desk", label: "Front desk", icon: ClipboardCheck }, { href: "/follow-ups", label: "Follow-ups", icon: Repeat }, { href: "/agents", label: "EVI agents", icon: Bot }] : []), ...modules, ...PRACTICE.filter(allowed), { href: "/practice/settings", label: "Settings", icon: Settings }].map((i) => (
               <MenuItem key={i.href} onSelect={() => router.push(i.href)}><i.icon className="size-4 text-muted" />{i.label}</MenuItem>
             ))}
           </MenuContent>

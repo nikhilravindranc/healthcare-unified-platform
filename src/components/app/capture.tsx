@@ -2,11 +2,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Camera, Check, ImagePlus, RotateCcw, X } from "lucide-react";
 import { toast } from "sonner";
-import { Alert, Badge, Button, Field, Input, Modal, Segmented, Sheet } from "@/components/ui";
+import { Alert, Badge, Button, Field, Input, Modal, Segmented, Select, Sheet } from "@/components/ui";
 import { PhotoThumb } from "./photos";
 import { apiC, PATIENT_FACE } from "@/lib/clinical";
 import { useAction, useClinic, usePhotos } from "@/lib/hooks";
-import type { PhotoAsset, PhotoView } from "@/lib/types";
+import type { PhotoAsset, PhotoConsent, PhotoView } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { getSettings } from "@/lib/settings";
 
@@ -25,7 +25,7 @@ export function CaptureSheet({ open, onClose, patientId, visitId, stage = "Befor
   const [err, setErr] = useState<string | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
   const [notes, setNotes] = useState("");
-  const [consent, setConsent] = useState(true);
+  const [consent, setConsent] = useState<PhotoConsent>("Not recorded");
   const video = useRef<HTMLVideoElement>(null);
   const stream = useRef<MediaStream | null>(null);
 
@@ -63,7 +63,7 @@ export function CaptureSheet({ open, onClose, patientId, visitId, stage = "Befor
   const save = async () => {
     setProgress(0);
     for (let p = 10; p <= 100; p += 30) { await new Promise((r) => setTimeout(r, 150)); setProgress(p); }
-    await add.run({ patientId, visitId, date: "2026-10-07", view, stage: st, area: AREA[view], source: preview?.sample ? "demo" : preview?.uri ? "captured" : "uploaded", consent: consent ? "Granted" : "Pending", notes, uri: preview?.uri, key: preview?.sample ? PATIENT_FACE[patientId] : undefined });
+    await add.run({ patientId, visitId, date: "2026-10-07", view, stage: st, area: AREA[view], source: preview?.sample ? "demo" : preview?.uri ? "captured" : "uploaded", consent, notes, uri: preview?.uri, key: preview?.sample ? PATIENT_FACE[patientId] : undefined });
     toast.success(`${view} photo saved`);
     setProgress(null); setPreview(null); setMode("choose");
     const next = checklist.find((v) => v !== view && !done(v));
@@ -109,11 +109,11 @@ export function CaptureSheet({ open, onClose, patientId, visitId, stage = "Befor
         {mode === "review" && preview && (
           <div className="space-y-3">
             <div className="mx-auto w-48 overflow-hidden rounded-xl border border-line">
-              {preview.uri ? <PhotoThumb photo={{ id: "p", patientId, date: "", author: "", view, area: "", stage: st, source: "captured", consent: "Granted", notes: "", uri: preview.uri }} /> : <PhotoThumb photo={{ id: "p", patientId, date: "", author: "", view, area: "", stage: st, source: "demo", consent: "Granted", notes: "", key: PATIENT_FACE[patientId] }} />}
+              {preview.uri ? <PhotoThumb photo={{ id: "p", patientId, date: "", author: "", view, area: "", stage: st, source: "captured", consent: "Not recorded", notes: "", uri: preview.uri }} /> : <PhotoThumb photo={{ id: "p", patientId, date: "", author: "", view, area: "", stage: st, source: "demo", consent: "Not recorded", notes: "", key: PATIENT_FACE[patientId] }} />}
             </div>
             {preview.sample && <p className="text-center text-xs text-muted">Illustrative demo image. It is not a real clinical capture.</p>}
             <Field label="Notes"><Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" /></Field>
-            <label className="flex items-center gap-2 text-[13px]"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />Photography consent is on file for this patient</label>
+            <Field label="Photo consent" hint="Choose Granted only if the patient has agreed to photos in their clinical record. Treatment consent does not cover it."><Select value={consent} onChange={(e) => setConsent(e.target.value as PhotoConsent)}><option>Not recorded</option><option>Granted</option><option>Denied</option></Select></Field>
             {progress !== null && <div className="h-1.5 rounded-full bg-cloud" role="progressbar" aria-valuenow={progress} aria-label="Upload progress"><div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progress}%` }} /></div>}
             <div className="flex justify-between"><Button variant="secondary" disabled={progress !== null} onClick={() => { setPreview(null); setMode("choose"); }}>Retake</Button><Button loading={progress !== null} onClick={save}>Save {view.toLowerCase()}</Button></div>
           </div>

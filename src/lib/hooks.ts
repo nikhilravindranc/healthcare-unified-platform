@@ -16,7 +16,11 @@ export const useNotifications = () => useQuery({ queryKey: ["notifications"], qu
 export function useAction<A extends unknown[], R>(fn: (...a: A) => Promise<R>, success?: string | ((r: R) => string)) {
   const qc = useQueryClient();
   const m = useMutation({
-    mutationFn: (a: A) => fn(...a),
+    mutationFn: async (a: A) => {
+      // Test seam, development builds only: a browser test sets window.__pmsFailNext to make the next save fail, because the mock API never does.
+      if (process.env.NODE_ENV !== "production" && typeof window !== "undefined" && (window as unknown as { __pmsFailNext?: boolean }).__pmsFailNext) { (window as unknown as { __pmsFailNext?: boolean }).__pmsFailNext = false; throw new Error("Simulated failure"); }
+      return fn(...a);
+    },
     onSuccess: async (r) => {
       await qc.invalidateQueries();
       if (success) toast.success(typeof success === "function" ? success(r) : success);

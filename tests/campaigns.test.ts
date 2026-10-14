@@ -20,7 +20,7 @@ test("an email audience contains only people with an explicit consent, and says 
   assert.equal(p.eligible.length, 7);                                     // the seven recorded "yes" decisions
   assert.ok(p.eligible.every((c) => c.consent.status === "granted" && c.kind === "patient"));
   assert.equal(p.excluded.length, 53);
-  assert.equal(p.reasonCounts[REASON.withdrawn], 2);
+  assert.equal(p.reasonCounts[REASON.notGranted], 2);
   assert.equal(p.reasonCounts[REASON.notRecorded], 51);                    // missing consent is a reason to exclude, never permission
 });
 

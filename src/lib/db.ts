@@ -312,7 +312,7 @@ export const api = {
   async completeFollowUp(id: string) {
     const f = followUps.find((x) => x.id === id)!; f.status = "Completed"; return lag(f, 250);
   },
-  async createFollowUp(input: { patientId: string; type: FollowUp["type"]; due: string; assignee: string; visitId?: string }) {
+  async createFollowUp(input: { patientId: string; type: FollowUp["type"]; due: string; assignee: string; visitId?: string; note?: string }) {
     const f: FollowUp = { id: uid("F"), status: "Open", ...input };
     followUps.unshift(f); return lag(f, 350);
   },

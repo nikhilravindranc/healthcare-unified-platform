@@ -11,7 +11,7 @@ import { Denied, ageOf } from "@/components/patient/shared";
 import { PlottingTab } from "@/components/visit/plotting";
 import { BeforeYouStart, BillingTab, capsFor, ConsentTab, FollowUpPanel, MeasuresTab, NotesTab, PlanTab, ProductsTab, SummaryPanel, TreatmentTab, VisitPhotos, type Patch } from "@/components/visit/tabs";
 import { apiC } from "@/lib/clinical";
-import { api, fmtDate, TODAY } from "@/lib/db";
+import { api, fmtDate, fmtTime, TODAY } from "@/lib/db";
 import { useAction, useAppointments, useClinic, usePatients, usePhotos, useRefs, useRole, useVisits } from "@/lib/hooks";
 import type { Visit } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -147,6 +147,7 @@ function Workspace({ id }: { id: string }) {
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2"><h1 className="truncate text-[22px] font-semibold tracking-tight">{draft.type}</h1><Badge tone={locked ? "mint" : "blue"}>{locked ? "Completed · read-only" : "In progress"}</Badge>{dirty && <Badge tone="peach">Unsaved</Badge>}{(p.alerts ?? []).length > 0 && <Badge tone="peach"><AlertTriangle className="size-3" aria-hidden />{p.alerts![0].description}</Badge>}</div>
             <p className="truncate text-[13px] text-muted"><Link href={`/patients/${p.id}`} className="font-medium text-ink hover:text-primary hover:underline">{p.first} {p.last}</Link> · {p.id} · {ageOf(p.dob)} yrs · {v.date === TODAY ? "Oct 7" : fmtDate(v.date)} · {refs?.providers.find((x) => x.id === v.providerId)?.short}{appt ? ` · ${refs?.rooms.find((r) => r.id === appt.roomId)?.name}` : ""}</p>
+            <p className="truncate text-xs text-muted">{appt ? <>Booking: <button onClick={() => ui.openAppt(appt.id)} className="font-medium text-primary hover:underline">{appt.date === TODAY ? "Today" : fmtDate(appt.date)}, {fmtTime(appt.time)}</button></> : "No booking is linked to this visit."}</p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">

@@ -1,6 +1,5 @@
-import { redirect } from "next/navigation";
+"use client";
+import { TodayView } from "@/components/app/today";
 
-/** Front desk now lives in Today as the Patient flow view. */
-export default function FrontDeskRedirect() {
-  redirect("/overview?view=flow");
-}
+/** Front desk is the Patient flow view of Today, on its own address so the sidebar can mark it active. */
+export default function FrontDeskPage() { return <TodayView initialTab="flow" />; }

@@ -53,7 +53,9 @@ export interface Visit {
 export type FollowUpType = "Post-treatment" | "Routine review" | "Treatment continuation" | "Recall" | "Other";
 export interface FollowUp {
   id: string; patientId: string; visitId?: string; type: FollowUpType; due: string;
-  assignee: string; status: "Open" | "Completed"; note?: string;
+  assignee: string; status: "Open" | "Completed";
+  /** Why this follow-up exists, in the person's own words. Never filled in for older records. Distinct from `type`, which is only the category. */
+  note?: string;
 }
 export interface Notification { id: string; text: string; time: string; read: boolean; href: string }
 
@@ -62,7 +64,7 @@ export type PhotoView = "Front" | "Left profile" | "Right profile" | "Close-up (
 export interface PhotoAsset {
   id: string; patientId: string; visitId?: string; date: string; author: string;
   view: PhotoView; area: string; stage: "Before" | "During" | "After" | "Other";
-  source: "captured" | "uploaded" | "demo"; consent: "Granted" | "Pending"; notes: string;
+  source: "captured" | "uploaded" | "demo"; consent: PhotoConsent; notes: string;
   /** Stock portrait key (demo) or an uploaded/captured data URL. Originals are never overwritten. */
   key?: string; uri?: string;
 }
@@ -80,3 +82,6 @@ export interface PlanStep { id: string; title: string; status: "Planned" | "Sche
 export interface TreatmentPlan { id: string; patientId: string; name: string; providerId: string; created: string; goal: string; review: string; status: "Active" | "Completed" | "On hold"; steps: PlanStep[]; notes: string }
 export interface PatientDoc { id: string; patientId: string; name: string; kind: "Referral" | "Lab/Outside record" | "Attachment" | "Consent record"; date: string; by: string; status: "Filed" | "Needs review" }
 export interface FormResponse { id: string; patientId: string; visitId?: string; templateId: string; templateName: string; version: number; submitted: string; by: string; status: "Submitted" | "Reviewed"; answers: Record<string, string> }
+
+/** Consent to take and keep this clinical photo. "Not recorded" means nobody has recorded a decision, which is not permission. Use in marketing or education is a separate permission that is not modelled here. */
+export type PhotoConsent = "Granted" | "Denied" | "Withdrawn" | "Not recorded";
