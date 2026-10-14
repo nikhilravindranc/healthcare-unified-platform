@@ -95,3 +95,12 @@ test("a booking is refused when it is too soon or too far ahead", async () => {
   await assert.rejects(() => bookingApi.book({ serviceId: "consult", providerId: "pat", locationId: "dt", date: addDays(TODAY, 20), time: "10:00", details }), SlotTakenError);
   configure({});
 });
+
+import { describeAvailability } from "../src/lib/availability-rules";
+test("the availability shown is what the rules read, and unreadable text is reported not guessed", () => {
+  const ok = describeAvailability({ hours: "Mon–Fri · 8:30 AM–5:00 PM", timeOff: "Oct 20 to Oct 24" });
+  assert.deepEqual([ok.days, ok.hours, ok.enforced, ok.unreadableTimeOff], ["Mon, Tue, Wed, Thu, Fri", "8:30 AM to 5:00 PM", true, []]);
+  const none = describeAvailability({ hours: "by arrangement" });
+  assert.deepEqual([none.days, none.hours, none.enforced], [null, null, false]);
+  assert.ok(describeAvailability({ hours: "Mon–Fri · 9:00 AM–5:00 PM", timeOff: "sometime in autumn" }).unreadableTimeOff.length > 0);
+});

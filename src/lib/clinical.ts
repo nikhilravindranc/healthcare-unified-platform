@@ -2,7 +2,7 @@ import { applyOverrides, diffOverrides, migrateSnapshot, type Overrides } from "
 import { isOpenStatus } from "@/lib/appointment-rules";
 import type {
   PatientDoc, FormResponse, TreatmentPlan, PlanStep,
-  AuditEntry, Estimate, FormTemplate, InventoryItem, InventoryMove, Invoice, InvoiceLine, PhotoAsset, Payment, PlotPoint, Visit,
+  AuditEntry, Estimate, FormTemplate, InventoryItem, InventoryMove, MoveKind, Invoice, InvoiceLine, PhotoAsset, Payment, PlotPoint, Visit,
 } from "./types";
 import { appointments, followUps, getProvider, patients, pname, services, TODAY, visits, addDays, fmtDate } from "./db";
 
@@ -173,6 +173,9 @@ export const moves: InventoryMove[] = [
   { id: "mv2", itemId: "i2", date: "2026-09-10", delta: -1, reason: "Used in treatment (P-10270)", by: "Dr. Patel", visitId: "V-5007" },
   { id: "mv3", itemId: "i1", date: "2026-09-25", delta: 100, reason: "Stock received", by: "Meera Iyer" },
 ];
+/** What kind of movement this is. Older records carry no kind, so it is read from what they do record: a visit means use, a gain means received. */
+export const moveKind = (m: InventoryMove): MoveKind => m.kind ?? (m.visitId ? "used" : m.reason === "Opening stock" ? "opening" : m.delta > 0 ? "received" : "correction");
+export const MOVE_LABEL: Record<MoveKind, string> = { opening: "Opening stock", received: "Received", used: "Used in a visit", correction: "Count correction" };
 export const invStatus = (i: InventoryItem): InventoryItem["status"] => (i.status === "Archived" ? "Archived" : i.qty <= 0 ? "Out" : i.qty <= i.reorder ? "Low" : "Active");
 
 /* ---------- Forms ---------- */
@@ -298,14 +301,18 @@ export const apiC = {
     invoices.unshift(inv); log("Tom Reyes", "Accepted estimate", `${id} → ${inv.id}`);
     return lag(inv, 300);
   },
-  async adjustStock(itemId: string, delta: number, reason: string) {
-    const it = inventory.find((x) => x.id === itemId)!; it.qty = Math.max(0, it.qty + delta); it.status = invStatus(it);
-    moves.unshift({ id: uid("mv"), itemId, date: TODAY, delta, reason, by: "Meera Iyer" });
+  async adjustStock(itemId: string, delta: number, reason: string, kind: MoveKind = delta > 0 ? "received" : "correction") {
+    const it = inventory.find((x) => x.id === itemId)!; const before = it.qty; it.qty = Math.max(0, before + delta); it.status = invStatus(it);
+    moves.unshift({ id: uid("mv"), itemId, date: TODAY, delta: it.qty - before, reason, by: "Meera Iyer", kind });   // the amount actually applied, so the list always adds up
     return lag(it, 250);
+  },
+  async setReorder(itemId: string, reorder: number) {
+    const it = inventory.find((x) => x.id === itemId)!; it.reorder = Math.max(0, reorder); it.status = invStatus(it); log("Meera Iyer", "Changed reorder level", `${it.name} → ${it.reorder}`);
+    return lag(it, 150);
   },
   async addItem(item: Omit<InventoryItem, "id" | "status">) {
     const it: InventoryItem = { ...item, id: uid("i"), status: "Active" }; it.status = invStatus(it); inventory.unshift(it);
-    moves.unshift({ id: uid("mv"), itemId: it.id, date: TODAY, delta: it.qty, reason: "Opening stock", by: "Meera Iyer" });
+    moves.unshift({ id: uid("mv"), itemId: it.id, date: TODAY, delta: it.qty, reason: "Opening stock", by: "Meera Iyer", kind: "opening" });
     return lag(it, 300);
   },
   async saveTemplate(t: FormTemplate) {
@@ -323,7 +330,7 @@ export const apiC = {
       const it = inventory.find((x) => x.name === product);
       if (it && units > 0 && !moves.some((m) => m.visitId === visitId && m.itemId === it.id)) {
         it.qty = Math.max(0, it.qty - units); it.status = invStatus(it);
-        moves.unshift({ id: uid("mv"), itemId: it.id, date: TODAY, delta: -units, reason: `Used in treatment (${v.patientId})`, by: getProvider(v.providerId)?.short ?? "Provider", visitId });
+        moves.unshift({ id: uid("mv"), itemId: it.id, date: TODAY, delta: -units, reason: `Used in treatment (${v.patientId})`, by: getProvider(v.providerId)?.short ?? "Provider", visitId, kind: "used" });
       }
     });
     log(getProvider(v.providerId)?.short ?? "Provider", "Completed visit", `${v.id} · ${pname(v.patientId)}`);

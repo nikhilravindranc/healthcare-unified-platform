@@ -81,7 +81,7 @@ export function Badge({ children, tone = "neutral", className }: { children: Rea
 }
 export const STATUS: Record<ApptStatus, { label: string; tone: Parameters<typeof Badge>[0]["tone"]; dot: string; shape: "ring" | "dot" | "half" | "check" | "x" | "dash" }> = {
   scheduled: { label: "Scheduled", tone: "neutral", dot: "#94A3B8", shape: "ring" },
-  confirmed: { label: "Confirmed", tone: "blue", dot: "#2867B2", shape: "check" },
+  confirmed: { label: "Confirmed", tone: "blue", dot: "#2867B2", shape: "ring" },
   arrived: { label: "Arrived", tone: "cyan", dot: "#26B9CF", shape: "dot" },
   waiting: { label: "Waiting", tone: "peach", dot: "#E0A23A", shape: "half" },
   in_progress: { label: "In visit", tone: "blue", dot: "#2867B2", shape: "dot" },
@@ -152,12 +152,21 @@ export const TabsTrigger = ({ className, ...p }: React.ComponentProps<typeof RTa
 export const TabsContent = ({ className, ...p }: React.ComponentProps<typeof RTabs.Content>) => <RTabs.Content className={cn("pt-5 focus-visible:outline-none", className)} {...p} />;
 
 /* ---------------- Dialog / Sheet ---------------- */
+/** Dialogs and panels opened from code have no trigger element, so Radix cannot return focus. Remember what had focus and put it back on close. */
+function useReturnFocus() {
+  const opener = React.useRef<HTMLElement | null>(null);
+  return {
+    onOpenAutoFocus: () => { const a = document.activeElement; opener.current = a instanceof HTMLElement && a !== document.body ? a : null; },
+    onCloseAutoFocus: (e: Event) => { const el = opener.current; if (el?.isConnected) { e.preventDefault(); el.focus(); } },
+  };
+}
 export function Modal({ open, onOpenChange, title, description, children, footer, width = 480 }: { open: boolean; onOpenChange: (o: boolean) => void; title: string; description?: React.ReactNode; children?: React.ReactNode; footer?: React.ReactNode; width?: number }) {
+  const rf = useReturnFocus();
   return (
     <RDialog.Root open={open} onOpenChange={onOpenChange}>
       <RDialog.Portal>
         <RDialog.Overlay className="anim-fade fixed inset-0 z-50 bg-[#26384B]/40" />
-        <RDialog.Content style={{ maxWidth: width }} className="anim-pop fixed left-1/2 top-1/2 z-50 w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 rounded-xl bg-white shadow-xl focus:outline-none">
+        <RDialog.Content {...rf} style={{ maxWidth: width }} className="anim-pop fixed left-1/2 top-1/2 z-50 w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 rounded-xl bg-white shadow-xl focus:outline-none">
           <div className="p-5">
             <RDialog.Title className="text-base font-semibold">{title}</RDialog.Title>
             <RDialog.Description asChild><div className="mt-1.5 text-sm text-muted">{description}</div></RDialog.Description>
@@ -176,11 +185,12 @@ export function ConfirmDialog({ open, onOpenChange, title, description, cancelLa
   );
 }
 export function Sheet({ open, onOpenChange, title, description, children, footer, width = 440, modal = true }: { open: boolean; onOpenChange: (o: boolean) => void; title: string; description?: string; children: React.ReactNode; footer?: React.ReactNode; width?: number; modal?: boolean }) {
+  const rf = useReturnFocus();
   return (
     <RDialog.Root open={open} onOpenChange={onOpenChange} modal={modal}>
       <RDialog.Portal>
         {modal && <RDialog.Overlay className="anim-fade fixed inset-0 z-40 bg-[#26384B]/25" />}
-        <RDialog.Content style={{ width }} onInteractOutside={(e) => { if (!modal) e.preventDefault(); }}
+        <RDialog.Content {...rf} style={{ width }} onInteractOutside={(e) => { if (!modal) e.preventDefault(); }}
           className="anim-panel fixed right-0 top-0 z-50 flex h-full max-w-full flex-col border-l border-line bg-white shadow-xl focus:outline-none">
           <div className="flex items-start justify-between gap-3 border-b border-line px-5 py-4">
             <div className="min-w-0">

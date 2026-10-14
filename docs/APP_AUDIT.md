@@ -15,14 +15,14 @@ Common baseline for every area: demo data resets on reload; permissions are fron
 | 4b | Visit detail: booking link, completed visits read-only, plan steps need recorded care | Visits | **Done** |
 | 5 | Consent wording: no inferred withdrawal; four photo-consent states; no pre-ticked capture consent | CRM, patients, campaigns, comms | **Done**, unit and browser-tested |
 | 6 | Route error boundary and failed-save behaviour | All | **Done**, boundary checked once with a temporary throwing page, failed save covered by Playwright |
-| 7 | Browser test harness | All | **Done** (Playwright, 36 tests) |
-| 8 | EVI/agents: "demo agents, fixed rules, no AI model connected" wording | Agents | **Done** (wording only). Per-finding "why this appeared" with source link is **not done** |
-| 9 | Calendar: keyboard access to week/month cells; booking-versus-attendance cue | Calendar | Not done |
-| 10 | Services: explain downstream effect of capability toggles | Services | Not done |
-| 11 | Team: show provider hours beside the provider | Team | Not done |
-| 12 | Inventory: movement history and threshold visible | Inventory | Not done |
-| 13 | Locations: room suitability by service | Locations | Not done (needs a model decision) |
-| 14 | Forms: patient-facing preview, template versus response | Forms | Not done |
+| 7 | Browser test harness | All | **Done** (Playwright, 67 tests) |
+| 8 | EVI/agents: "demo agents, fixed rules, no AI model connected" wording; "Why this appeared" on every finding (rule, recorded facts, limits, source links) | Agents | **Done**, unit and browser-tested. Also removed an invented claim ("a 3:00 PM slot with Dr. Rao is open") and made recall, follow-up and no-show rules ignore cancelled and no-show bookings |
+| 9 | Calendar: booking versus attendance (Booked, Attending, Completed, Did not take place), status key, dashed outline for booked-only, visible "Cancelled"/"No-show" label, keyboard date navigation, focus return after the panel closes | Calendar | **Done**, unit and browser-tested. Week/month cells were already buttons. Arrow-key movement between events is not added (Tab reaches every event) |
+| 10 | Services: active/inactive meaning stated; inactive services and rooms no longer offered in the new appointment form | Services | **Done**, browser-tested |
+| 11 | Team: provider availability shown as the booking rules read it, with a live "what the rules will use" panel; unreadable text reported, nothing assumed | Team | **Done**, unit and browser-tested |
+| 12 | Inventory: movement type, date, visit link; editable reorder level; movements record the amount actually applied; "demo session only" note | Inventory | **Done**, unit and browser-tested. No procurement or warehouse features added |
+| 13 | Locations: room suitability by service | Locations | **Not enforced, documented.** The model has no room-to-service link. The Rooms screen says so. Decision needed: add `Room.serviceIds?: string[]` (empty means any) and a rule in `checkConflicts` |
+| 14 | Forms: read-only preview from the list and the builder; multi-select questions now show their options; patient fill dialog states the template version | Forms | **Done**, browser-tested |
 | 15 | Reports charts: replace illustrative charts with record-based ones | Reports | Blocked: seed has too little history. They stay labelled illustrative |
 
 Backend and production work (not frontend): Contact service and migration, consent service, server-side authorization and audit, persistence, real messaging and payment integrations, real AI. See `IDENTITY_DECISIONS.md` sections 13 and 14.
@@ -131,8 +131,17 @@ Backend and production work (not frontend): Contact service and migration, conse
 See the implementation report. Data link integrity is covered by `tests/record-links.test.ts`. Not simulated: network failure and slow responses (the mock API never rejects); the only failure UI reachable is the new route error boundary and the mutation toast.
 
 ## Validation evidence (14 Oct 2026)
-- `npm test`: unit tests pass (see the final report for the count).
-- `npm run test:e2e`: 36 Playwright tests pass against the dev server (Chromium).
+- `npm test`: 94 unit tests pass.
+- `npm run test:e2e`: 67 Playwright tests pass against the dev server (Chromium): journeys, role access, failed save, Reports, consent wording, Calendar status and keyboard, Services, Team, Inventory, Rooms, Forms preview, Agents explanations, and no horizontal scroll at 375, 768 and 1280px on the main and configuration screens.
 - Checks: `tsc --noEmit`, `eslint src`, `npm run build`.
 - Manual browser checks: Reports, Visits, patient list, follow-ups, route error boundary (temporary page, removed).
 - Not tested: real network failure, slow responses, screen readers, other browsers, full keyboard pass of every control on every tab. Only targeted keyboard checks were run: patient tab arrow/Home/End, More menu, Edit dialog and focus return.
+- Marketing role: a Playwright test confirms the patient page refuses it. The route error boundary has no automated test: it was checked once with a temporary throwing page, because a render error cannot be caused from the normal UI.
+- Keyboard and focus checked for what was touched: Calendar (arrow keys, T, Enter on an event, Escape, focus returns to the event), Forms preview (Enter on the button, Escape, focus returns), patient tabs and More menu. Dialogs and panels opened from code now return focus to the control that opened them (`useReturnFocus` in `ui/index.tsx`).
+- Not done: screen-reader testing, other browsers, a full accessibility audit.
+
+## Remaining frontend gaps (14 Oct 2026)
+- Room suitability by service: needs the model decision above.
+- Reports: illustrative charts stay until the seed has real history.
+- Calendar: no arrow-key movement between events, and no keyboard way to create an appointment in an empty slot other than the New appointment button.
+- Reorder level and stock movements are demo-session only; nothing persists.

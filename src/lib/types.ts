@@ -73,7 +73,8 @@ export interface Invoice { id: string; patientId: string; visitId?: string; issu
 export interface Estimate { id: string; patientId: string; date: string; expiry: string; lines: InvoiceLine[]; status: "Draft" | "Sent" | "Accepted" | "Expired"; notes?: string }
 export interface Payment { id: string; patientId: string; invoiceId?: string; kind: "payment" | "deposit" | "refund" | "credit"; date: string; amount: number; method: string; reference: string; by: string; status: "Posted" | "Reversed"; reason?: string }
 export interface InventoryItem { id: string; name: string; sku: string; category: string; supplier: string; locationId: string; qty: number; unit: string; reorder: number; lot?: string; expiry?: string; price: number; status: "Active" | "Low" | "Out" | "Archived" }
-export interface InventoryMove { id: string; itemId: string; date: string; delta: number; reason: string; by: string; visitId?: string }
+export type MoveKind = "opening" | "received" | "used" | "correction";
+export interface InventoryMove { id: string; itemId: string; date: string; delta: number; reason: string; by: string; visitId?: string; kind?: MoveKind }
 export interface AuditEntry { id: string; at: string; who: string; action: string; target: string }
 export interface FormField { id: string; type: "short" | "long" | "number" | "date" | "select" | "multi" | "checkbox" | "yesno" | "instructions" | "file"; label: string; helper?: string; required: boolean; options?: string[] }
 export interface FormTemplate { id: string; name: string; type: "Consent" | "Clinical form" | "Intake"; specialty: string; description: string; version: number; status: "Draft" | "Published" | "Archived"; owner: string; fields: FormField[] }

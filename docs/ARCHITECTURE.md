@@ -142,3 +142,11 @@ Pure functions behind the patient Overview, tested in `tests/patient-overview.te
 - `hasCare` (`patient-overview.ts`): a plan step can be completed from a visit only if that visit records care.
 - Consent states: `ConsentState` is `granted | withdrawn | not-granted | not-recorded`. `not-granted` is the old stored "no" with unknown details. It blocks marketing and is never called a withdrawal. `PhotoConsent` is `Granted | Denied | Withdrawn | Not recorded`. These are display states over the current storage; the append-only consent model in `IDENTITY_DECISIONS.md` section 10 is not simulated in the frontend.
 - A route error boundary (`src/app/(app)/error.tsx`) keeps the shell usable if a screen fails to render.
+
+## Calendar, configuration, forms and agent explanations (frontend)
+- `apptStage` and `STAGE_LABEL` (`appointment-rules.ts`) group the existing eight statuses into Booked, Attending, Completed and Did not take place. No new status field exists. `STATUS` in `ui/index.tsx` keeps one visual per status; Confirmed is now a hollow marker so it cannot look like Completed.
+- `describeAvailability` (`availability-rules.ts`) reports what `parseProviderHours` and `parseDateRanges` actually read, so the Team screen cannot show hours the rules do not enforce.
+- `InventoryMove.kind` is optional. `moveKind` reads older records from what they record (a visit means used, a gain means received). `adjustStock` logs the amount actually applied.
+- `Finding.why` (`insight.ts`) carries the rule, recorded facts, limits and source links for each agent finding. These are fixed rules over demo data, not a model.
+- Dialogs and panels opened from code return focus to the opener (`useReturnFocus`, `ui/index.tsx`); the appointment panel also re-finds its opener by label if the list re-rendered.
+- Open model decision: `Room` has no link to services. If suitability is wanted, add `Room.serviceIds?: string[]` (empty means any) and apply it in `checkConflicts` and the room pickers, then show it in Rooms. Not done, so nothing claims it.

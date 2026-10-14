@@ -175,10 +175,10 @@ export function NewAppointmentPanel({ open, onClose, prefill, onCreated }: { ope
   }, [open, prefill]);
   const v = f.watch();
   const { errors } = f.formState;
-  const services = refs?.services.filter((s) => !v.providerId || s.providerIds.includes(v.providerId)) ?? [];
+  const services = refs?.services.filter((s) => (!v.providerId || s.providerIds.includes(v.providerId)) && (s.status === "Active" || s.id === v.serviceId)) ?? [];
   const provider = refs?.providers.find((p) => p.id === v.providerId);
   const locs = refs?.locations.filter((l) => !provider || provider.locationIds.includes(l.id)) ?? [];
-  const rooms = refs?.rooms.filter((r) => !v.locationId || r.locationId === v.locationId) ?? [];
+  const rooms = refs?.rooms.filter((r) => (!v.locationId || r.locationId === v.locationId) && (r.status !== "Inactive" || r.id === v.roomId)) ?? [];
   const conflicts = useMemo(() => (v.providerId && v.time ? checkConflicts({ providerId: v.providerId, roomId: v.roomId, date: v.date, time: v.time, duration: Number(v.duration) || 30 }) : []), [v.providerId, v.roomId, v.date, v.time, v.duration]);
   const free = useMemo(() => (v.providerId ? new Set(freeSlots(v.providerId, v.date, Number(v.duration) || 30)) : null), [v.providerId, v.date, v.duration]);
   const pname = patients?.find((p) => p.id === created?.patientId);

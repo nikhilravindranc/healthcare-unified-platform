@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CalendarPlus, ChevronLeft, ChevronRight, SlidersHorizontal } from "lucide-react";
 import { Button, Segmented, Select, Skeleton, StatusDot, STATUS } from "@/components/ui";
 import { AgentHint } from "@/components/app/bits";
@@ -7,6 +7,7 @@ import { useUI } from "@/components/app/ui-state";
 import { useAppointments, useNow, useRefs } from "@/lib/hooks";
 import { addDays, fmtDate, fmtTime, fromMin, getPatient, TODAY, toMin } from "@/lib/db";
 import { scheduleGaps } from "@/lib/insight";
+import { apptStage, isLostStatus, STAGE_LABEL } from "@/lib/appointment-rules";
 import { PatientAvatar } from "@/components/app/photos";
 import type { Appointment } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -34,6 +35,9 @@ export default function CalendarPage() {
   const [gaps, setGaps] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const active = [f.provider, f.service, f.location, f.room].filter(Boolean).length;
+  const gridRef = useRef<HTMLDivElement>(null);
+  const refocus = useRef(false);
+  useEffect(() => { if (refocus.current) { refocus.current = false; gridRef.current?.focus(); } }, [view, date]);
 
   const filtered = useMemo(() => (appts ?? []).filter((a) =>
     (!f.provider || a.providerId === f.provider) && (!f.service || a.serviceId === f.service) && (!f.location || a.locationId === f.location) && (!f.room || a.roomId === f.room)), [appts, f]);
@@ -80,14 +84,18 @@ export default function CalendarPage() {
         <AgentHint agent={1} text={`Appointment Agent found ${gapCount} schedule gaps today.`} action={gaps ? "Hide gaps" : "Review gaps"} onAction={() => setGaps((g) => !g)} />
       )}
 
+      <div ref={gridRef} tabIndex={-1} role="region" aria-label={`Calendar, ${view} view. Press left or right arrow for the previous or next ${view}, T for today.`} className="rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        onKeyDown={(e) => { if (e.target !== e.currentTarget) return; if (e.key === "ArrowLeft") { e.preventDefault(); shift(-1); } else if (e.key === "ArrowRight") { e.preventDefault(); shift(1); } else if (e.key === "t" || e.key === "T") { e.preventDefault(); setDate(TODAY); } }}>
       {isLoading ? <Skeleton className="h-[560px] w-full" /> : view === "month" ? (
-        <MonthGrid date={date} appts={filtered} onPick={(d) => { setDate(d); setView("day"); }} />
+        <MonthGrid date={date} appts={filtered} onPick={(d) => { refocus.current = true; setDate(d); setView("day"); }} />
       ) : cols.length === 0 ? null : (
         <TimeGrid cols={cols} now={now} showNow={cols.some((c) => c.date === TODAY)} gaps={gaps}
           onOpen={(id) => ui.openAppt(id)} onSlot={(c, t) => ui.newAppt({ date: c.date, time: t, providerId: c.providerId ?? (f.provider || "") })} view={view}
-          onDay={(d) => { setDate(d); setView("day"); }} />
+          onDay={(d) => { refocus.current = true; setDate(d); setView("day"); }} />
       )}
-      <p className="mt-3 text-xs text-muted">Select an appointment to open details. Select an empty slot to schedule. <button className="underline" onClick={() => router.push("/agents?agent=appointment")}>Appointment Agent</button></p>
+      </div>
+      <Legend />
+      <p className="mt-2 text-xs text-muted">Select an appointment to open details. Select an empty slot to schedule. <button className="underline" onClick={() => router.push("/agents?agent=appointment")}>Appointment Agent</button></p>
     </>
   );
 }
@@ -128,10 +136,10 @@ function TimeGrid({ cols, now, showNow, gaps, onOpen, onSlot, view, onDay }: { c
               const prov = refs?.providers.find((x) => x.id === a.providerId);
               const inactive = a.status === "cancelled" || a.status === "no_show";
               return (
-                <button key={a.id} onClick={() => onOpen(a.id)} aria-label={`${p?.first} ${p?.last}, ${fmtTime(a.time)}, ${STATUS[a.status].label}`}
-                  className={cn("absolute inset-x-1 overflow-hidden rounded-md border bg-white px-2 py-1 text-left shadow-[0_1px_0_rgba(38,56,75,.04)] transition hover:shadow-md focus-visible:z-10", inactive && "bg-cloud/70 opacity-70")}
-                  style={{ top: top + 1, height: h, borderColor: "#E2E7EB", borderLeft: `3px solid ${prov?.color ?? "#2867B2"}` }}>
-                  <span className="flex items-center gap-1.5">{h >= 40 && view === "day" && <PatientAvatar id={a.patientId} size={18} />}<StatusDot status={a.status} /><span className={cn("truncate text-[12.5px] font-medium", inactive && "line-through")}>{view === "week" ? `${fmtTime(a.time).replace(" ", "")} ` : ""}{p?.first} {p?.last}</span></span>
+                <button key={a.id} onClick={() => onOpen(a.id)} aria-label={`${p?.first} ${p?.last}, ${fmtTime(a.time)}, ${STAGE_LABEL[apptStage(a.status)]}: ${STATUS[a.status].label}`}
+                  className={cn("absolute inset-x-1 overflow-hidden rounded-md border bg-white px-2 py-1 text-left shadow-[0_1px_0_rgba(38,56,75,.04)] transition hover:shadow-md focus-visible:z-10", inactive && "bg-cloud/70 opacity-70", apptStage(a.status) === "booked" && "border-dashed")}
+                  style={{ top: top + 1, height: h, borderColor: apptStage(a.status) === "booked" ? "#B8C2CC" : "#E2E7EB", borderLeft: `3px solid ${prov?.color ?? "#2867B2"}` }}>
+                  <span className="flex items-center gap-1.5">{h >= 40 && view === "day" && <PatientAvatar id={a.patientId} size={18} />}<StatusDot status={a.status} /><span className={cn("truncate text-[12.5px] font-medium", inactive && "line-through")}>{view === "week" ? `${fmtTime(a.time).replace(" ", "")} ` : ""}{p?.first} {p?.last}</span>{inactive && <span className="shrink-0 text-[11px] font-medium text-[#8F2D2D]">{STATUS[a.status].label}</span>}</span>
                   {h >= 40 && <span className="mt-0.5 block truncate text-[11.5px] text-muted">{refs?.services.find((s) => s.id === a.serviceId)?.name}</span>}
                   {h >= 58 && <span className="block truncate text-[11px] text-muted">{STATUS[a.status].label}{view === "week" ? ` · ${prov?.short}` : ""}</span>}
                 </button>
@@ -157,17 +165,36 @@ function MonthGrid({ date, appts, onPick }: { date: string; appts: Appointment[]
       <div className="grid grid-cols-7 border-b border-line bg-cloud/50 text-center text-xs font-medium text-muted">{["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => <div key={d} className="py-2">{d}</div>)}</div>
       <div className="grid grid-cols-7">
         {days.map((d) => {
-          const list = appts.filter((a) => a.date === d);
+          const all = appts.filter((a) => a.date === d);
+          const list = all.filter((a) => !isLostStatus(a.status));
+          const lost = all.length - list.length;
           const other = d.slice(5, 7) !== month;
           return (
-            <button key={d} onClick={() => onPick(d)} aria-label={`${fmtDate(d)}, ${list.length} appointments`} className={cn("min-h-24 border-b border-l border-line p-1.5 text-left align-top hover:bg-active/50", other && "bg-cloud/40 text-muted")}>
+            <button key={d} onClick={() => onPick(d)} aria-label={`${fmtDate(d)}, ${list.length} appointment${list.length === 1 ? "" : "s"}${lost ? `, ${lost} cancelled or missed` : ""}`} className={cn("min-h-24 border-b border-l border-line p-1.5 text-left align-top hover:bg-active/50", other && "bg-cloud/40 text-muted")}>
               <span className={cn("inline-grid size-6 place-items-center rounded-full text-xs font-medium", d === TODAY && "bg-primary text-white")}>{Number(d.slice(8))}</span>
               {list.length > 0 && <p className="mt-1 text-[11px] font-medium text-primary">{list.length} appointment{list.length > 1 ? "s" : ""}</p>}
+              {lost > 0 && <p className="text-[11px] text-[#8F2D2D]">{lost} cancelled or missed</p>}
               {list.slice(0, 2).map((a) => <p key={a.id} className="mt-0.5 hidden truncate text-[11px] text-muted sm:block">{fmtTime(a.time).replace(" ", "")} {getPatient(a.patientId)?.last}</p>)}
             </button>
           );
         })}
       </div>
+    </div>
+  );
+}
+
+/** What each marker means. Booking state and attendance state are kept apart, and colour is never the only cue. */
+function Legend() {
+  const groups: { stage: ReturnType<typeof apptStage>; statuses: Appointment["status"][] }[] = [
+    { stage: "booked", statuses: ["scheduled", "confirmed"] }, { stage: "attending", statuses: ["arrived", "waiting", "in_progress"] },
+    { stage: "completed", statuses: ["completed"] }, { stage: "lost", statuses: ["cancelled", "no_show"] }];
+  return (
+    <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1.5 text-xs">
+    <dl aria-label="Appointment status key" className="contents">
+      {groups.map((g) => (
+        <div key={g.stage} className="flex flex-wrap items-center gap-x-2"><dt className="font-medium text-slate-600">{STAGE_LABEL[g.stage]}</dt>{g.statuses.map((s) => <dd key={s} className="flex items-center gap-1 text-muted"><StatusDot status={s} />{STATUS[s].label}</dd>)}</div>))}
+    </dl>
+      <p className="text-muted">Dashed outline: booked only, nobody has arrived.</p>
     </div>
   );
 }

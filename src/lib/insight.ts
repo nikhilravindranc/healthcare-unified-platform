@@ -3,7 +3,7 @@ import {
   providers, TODAY, toMin, visits, fromMin,
 } from "./db";
 import { photos, inventory, invStatus, patientFinancials, money, type PermKey } from "./clinical";
-import { isOpenStatus, isLiveStatus } from "@/lib/appointment-rules";
+import { isOpenStatus, isLiveStatus, isUpcoming } from "@/lib/appointment-rules";
 
 /* ---------------- Shared helpers ---------------- */
 export const waitingNow = () =>
@@ -41,7 +41,10 @@ export function prepSummary(patientId: string, apptId?: string) {
 export type PrepSummary = ReturnType<typeof prepSummary>;
 
 /* ---------------- Agents ---------------- */
-export interface Finding { id: string; title: string; detail: string; patientId?: string; apptId?: string; followUpId?: string; action: "schedule" | "open-patient" | "reschedule" | "open-appt" | "review"; providerId?: string; href?: string }
+/** Why a finding appeared: the fixed rule that fired, the recorded facts it matched, and what the rule cannot know. Nothing here is a clinical judgement. */
+export interface Why { rule: string; recorded: string; limits?: string; sources: { label: string; href: string }[] }
+export interface Finding { id: string; title: string; detail: string; patientId?: string; apptId?: string; followUpId?: string; action: "schedule" | "open-patient" | "reschedule" | "open-appt" | "review"; providerId?: string; href?: string; why?: Why }
+const srcPatient = (id: string) => ({ label: `Patient ${pname(id)}`, href: `/patients/${id}` });
 export interface AgentDef { id: string; name: string; description: string; actions: string[]; findings: () => Finding[]; summary: () => string }
 
 export function scheduleGaps(date = TODAY) {
@@ -59,9 +62,17 @@ export function scheduleGaps(date = TODAY) {
   return gaps;
 }
 
+const NO_NEXT_RULE = "The patient has at least one completed visit and no open appointment from today onward. Cancelled and no-show bookings do not count as a next appointment.";
+const noNextWhy = (pid: string): Why => { const last = patientVisits(pid).find((v) => v.status === "Completed"); return { rule: NO_NEXT_RULE, recorded: last ? `Last completed visit: ${fmtDate(last.date)}, ${last.type}. No open appointment is booked.` : "No completed visit is recorded.", limits: "This does not say whether a return is clinically needed. Only a person can decide that.", sources: [srcPatient(pid), ...(last ? [{ label: `Visit ${last.id}`, href: `/visits/${last.id}` }] : [])] }; };
+const fuWhy = (f: (typeof followUps)[number], when: string): Why => ({
+  rule: `The follow-up is still Open and ${when}.`,
+  recorded: `${f.type}, due ${fmtDate(f.due)}, owner ${f.assignee}. Reason: ${f.note?.trim() ? f.note : "not recorded"}.`,
+  limits: f.visitId ? undefined : "No source visit is recorded for this follow-up, so where it came from cannot be established.",
+  sources: [srcPatient(f.patientId), ...(f.visitId ? [{ label: `Source visit ${f.visitId}`, href: `/visits/${f.visitId}` }] : []), { label: "Follow-ups", href: "/follow-ups" }],
+});
 const noShows = () => appointments.filter((a) => a.status === "no_show");
 const withoutNext = () => {
-  const upcoming = new Set(appointments.filter((a) => a.date > TODAY || (a.date === TODAY && ["scheduled", "confirmed"].includes(a.status))).map((a) => a.patientId));
+  const upcoming = new Set(appointments.filter((a) => isUpcoming(a, TODAY)).map((a) => a.patientId));
   return patients.filter((p) => !upcoming.has(p.id) && visits.some((v) => v.patientId === p.id && v.status === "Completed"));
 };
 
@@ -73,9 +84,9 @@ export const agents: AgentDef[] = [
     findings: () => {
       const b = followUpBuckets();
       return [
-        ...b.overdue.map((f): Finding => ({ id: f.id, title: `${pname(f.patientId)} · ${f.type}`, detail: `Overdue since ${fmtDate(f.due)}`, patientId: f.patientId, followUpId: f.id, action: "schedule" })),
-        ...b.today.map((f): Finding => ({ id: f.id, title: `${pname(f.patientId)} · ${f.type}`, detail: "Due today", patientId: f.patientId, followUpId: f.id, action: "schedule" })),
-        ...withoutNext().slice(0, 3).map((p): Finding => ({ id: "n" + p.id, title: pname(p.id), detail: "No next appointment scheduled", patientId: p.id, action: "schedule" })),
+        ...b.overdue.map((f): Finding => ({ id: f.id, title: `${pname(f.patientId)} · ${f.type}`, detail: `Overdue since ${fmtDate(f.due)}`, patientId: f.patientId, followUpId: f.id, action: "schedule", why: fuWhy(f, "its due date is before today") })),
+        ...b.today.map((f): Finding => ({ id: f.id, title: `${pname(f.patientId)} · ${f.type}`, detail: "Due today", patientId: f.patientId, followUpId: f.id, action: "schedule", why: fuWhy(f, "it is due today") })),
+        ...withoutNext().slice(0, 3).map((p): Finding => ({ id: "n" + p.id, title: pname(p.id), detail: "No next appointment scheduled", patientId: p.id, action: "schedule", why: noNextWhy(p.id) })),
       ];
     },
     summary: () => { const b = followUpBuckets(); return `${b.overdue.length + b.today.length + withoutNext().slice(0, 3).length} patients need attention`; },
@@ -85,9 +96,9 @@ export const agents: AgentDef[] = [
     description: "Watches today's schedule for gaps, conflicts, cancellations, no-shows and waiting patients.",
     actions: ["Review schedule", "Open appointment", "Reschedule"],
     findings: () => [
-      ...scheduleGaps().map((g): Finding => ({ id: `g-${g.providerId}-${g.from}`, title: `${getProvider(g.providerId)?.short} · ${g.mins} min open`, detail: `${fmtTime(g.from)} – ${fmtTime(g.to)}`, providerId: g.providerId, action: "review", href: "/calendar" })),
-      ...waitingNow().map(({ a, mins }): Finding => ({ id: "w" + a.id, title: `${pname(a.patientId)} waiting ${mins} min`, detail: `${getProvider(a.providerId)?.short} · ${getService(a.serviceId)?.name}`, apptId: a.id, patientId: a.patientId, action: "open-appt" })),
-      ...appointments.filter((a) => a.date === TODAY && a.status === "cancelled").map((a): Finding => ({ id: "c" + a.id, title: `Cancelled: ${pname(a.patientId)}`, detail: `${fmtTime(a.time)} with ${getProvider(a.providerId)?.short}`, apptId: a.id, patientId: a.patientId, action: "reschedule" })),
+      ...scheduleGaps().map((g): Finding => ({ id: `g-${g.providerId}-${g.from}`, title: `${getProvider(g.providerId)?.short} · ${g.mins} min open`, detail: `${fmtTime(g.from)} – ${fmtTime(g.to)}`, providerId: g.providerId, action: "review", href: "/calendar", why: { rule: "A provider has 45 minutes or more between live appointments, within a fixed 9:00 AM to 5:00 PM window, from now onward.", recorded: `${getProvider(g.providerId)?.short}: ${fmtTime(g.from)} to ${fmtTime(g.to)} has no booked appointment.`, limits: "The rule uses a fixed window. It does not read the provider's configured hours, practice break or time off, so an open gap may not be bookable.", sources: [{ label: "Calendar", href: "/calendar" }] } })),
+      ...waitingNow().map(({ a, mins }): Finding => ({ id: "w" + a.id, title: `${pname(a.patientId)} waiting ${mins} min`, detail: `${getProvider(a.providerId)?.short} · ${getService(a.serviceId)?.name}`, apptId: a.id, patientId: a.patientId, action: "open-appt", why: { rule: "An appointment today has the status Waiting. Minutes waiting is the time since the recorded arrival.", recorded: `${getService(a.serviceId)?.name} with ${getProvider(a.providerId)?.short}, ${fmtTime(a.time)}. Arrival time ${a.arrivedAt != null ? "is recorded" : "is not recorded, so the wait cannot be established"}.`, sources: [srcPatient(a.patientId), { label: "Today", href: "/overview" }] } })),
+      ...appointments.filter((a) => a.date === TODAY && a.status === "cancelled").map((a): Finding => ({ id: "c" + a.id, title: `Cancelled: ${pname(a.patientId)}`, detail: `${fmtTime(a.time)} with ${getProvider(a.providerId)?.short}`, apptId: a.id, patientId: a.patientId, action: "reschedule", why: { rule: "An appointment today has the status Cancelled.", recorded: `${getService(a.serviceId)?.name}, ${fmtTime(a.time)} with ${getProvider(a.providerId)?.short}. The reason for cancelling is not read by this rule.`, sources: [srcPatient(a.patientId)] } })),
     ],
     summary: () => `${scheduleGaps().length} schedule gaps today`,
   },
@@ -98,7 +109,7 @@ export const agents: AgentDef[] = [
     findings: () =>
       withoutNext().map((p): Finding => {
         const last = patientVisits(p.id).find((v) => v.status === "Completed");
-        return { id: "r" + p.id, title: pname(p.id), detail: `Last visit ${last ? fmtDate(last.date) + " · " + last.type : "—"}, nothing scheduled`, patientId: p.id, action: "schedule" };
+        return { id: "r" + p.id, title: pname(p.id), detail: `Last visit ${last ? fmtDate(last.date) + " · " + last.type : "—"}, nothing scheduled`, patientId: p.id, action: "schedule", why: noNextWhy(p.id) };
       }),
     summary: () => `${withoutNext().length} ${withoutNext().length === 1 ? "patient" : "patients"} due to return`,
   },
@@ -108,14 +119,14 @@ export const agents: AgentDef[] = [
     actions: ["Prepare a visit", "Open patient", "Start visit"],
     findings: () =>
       appointments.filter((a) => a.date === TODAY && ["scheduled", "confirmed", "arrived", "waiting"].includes(a.status)).sort((a, b) => a.time.localeCompare(b.time)).slice(0, 6)
-        .map((a): Finding => ({ id: "p" + a.id, title: `${pname(a.patientId)} · ${fmtTime(a.time)}`, detail: `${getService(a.serviceId)?.name} with ${getProvider(a.providerId)?.short}`, apptId: a.id, patientId: a.patientId, action: "review" })),
+        .map((a): Finding => ({ id: "p" + a.id, title: `${pname(a.patientId)} · ${fmtTime(a.time)}`, detail: `${getService(a.serviceId)?.name} with ${getProvider(a.providerId)?.short}`, apptId: a.id, patientId: a.patientId, action: "review", why: { rule: "An appointment today is scheduled, confirmed, arrived or waiting. The first six by time are listed.", recorded: `${getService(a.serviceId)?.name} with ${getProvider(a.providerId)?.short} at ${fmtTime(a.time)}. "Prepare visit" summarises only what is already documented.`, limits: "It does not diagnose or recommend treatment.", sources: [srcPatient(a.patientId)] } })),
     summary: () => `${appointments.filter((a) => a.date === TODAY && ["scheduled", "confirmed", "arrived", "waiting"].includes(a.status)).length} upcoming visits to prepare`,
   },
   {
     id: "noshow", name: "No-show Agent",
     description: "Reviews recent and repeat no-shows and appointment patterns.",
     actions: ["Review patient", "Reschedule", "Follow up"],
-    findings: () => noShows().map((a): Finding => ({ id: "ns" + a.id, title: `${pname(a.patientId)} · ${fmtTime(a.time)}`, detail: `${getService(a.serviceId)?.name}, ${getProvider(a.providerId)?.short}. ${appointments.some((x) => x.patientId === a.patientId && x.date >= TODAY && x.id !== a.id && x.status === "scheduled") ? "Already rebooked" : "Not rebooked"}`, patientId: a.patientId, apptId: a.id, action: "reschedule" })),
+    findings: () => noShows().map((a): Finding => ({ id: "ns" + a.id, title: `${pname(a.patientId)} · ${fmtTime(a.time)}`, detail: `${getService(a.serviceId)?.name}, ${getProvider(a.providerId)?.short}. ${appointments.some((x) => x.patientId === a.patientId && x.date >= TODAY && x.id !== a.id && isUpcoming(x, TODAY)) ? "Already rebooked" : "Not rebooked"}`, patientId: a.patientId, apptId: a.id, action: "reschedule", why: { rule: "An appointment has the status No-show. \"Rebooked\" means the patient has another open appointment from today onward.", recorded: `${getService(a.serviceId)?.name}, ${fmtDate(a.date)} ${fmtTime(a.time)} with ${getProvider(a.providerId)?.short}.`, limits: "This rule does not look for patterns or reasons. One no-show is listed on its own.", sources: [srcPatient(a.patientId)] } })),
     summary: () => `${noShows().length} no-show today`,
   },
   {
@@ -127,10 +138,10 @@ export const agents: AgentDef[] = [
       const done = t.filter((a) => a.status === "completed").length;
       const busiest = providers.map((p) => ({ p, n: t.filter((a) => a.providerId === p.id).length })).sort((a, b) => b.n - a.n)[0];
       return [
-        { id: "i1", title: "Today's schedule", detail: `${t.length} appointments booked, ${done} completed so far. ${busiest.p.short} has the busiest day (${busiest.n}).`, action: "review", href: "/reports" },
-        { id: "i2", title: "Cancellations and no-shows", detail: `${t.filter((a) => a.status === "cancelled").length} cancellation and ${t.filter((a) => a.status === "no_show").length} no-show today. One 3:00 PM slot with Dr. Rao is now open.`, action: "review", href: "/reports" },
-        { id: "i3", title: "Schedule gaps", detail: `${scheduleGaps().length} gaps of 45 minutes or more remain today, the largest on ${getProvider(scheduleGaps().sort((a, b) => b.mins - a.mins)[0]?.providerId ?? "pat")?.short}'s schedule.`, action: "review", href: "/calendar" },
-        { id: "i4", title: "Follow-ups", detail: `${followUpBuckets().overdue.length} overdue and ${followUpBuckets().today.length} due today.`, action: "review", href: "/follow-ups" },
+        { id: "i1", title: "Today's schedule", detail: `${t.length} appointments booked, ${done} completed so far. ${busiest.p.short} has the busiest day (${busiest.n}).`, action: "review", href: "/reports", why: { rule: "Counts today's appointment records by status and by provider.", recorded: `${t.length} appointment records dated today.`, sources: [{ label: "Calendar", href: "/calendar" }] } },
+        { id: "i2", title: "Cancellations and no-shows", detail: `${t.filter((a) => a.status === "cancelled").length} cancellation and ${t.filter((a) => a.status === "no_show").length} no-show today.`, action: "review", href: "/reports", why: { rule: "Counts today's appointment records with the status Cancelled or No-show.", recorded: "Status values on today's appointment records.", sources: [{ label: "Calendar", href: "/calendar" }] } },
+        { id: "i3", title: "Schedule gaps", detail: `${scheduleGaps().length} gaps of 45 minutes or more remain today, the largest on ${getProvider(scheduleGaps().sort((a, b) => b.mins - a.mins)[0]?.providerId ?? "pat")?.short}'s schedule.`, action: "review", href: "/calendar", why: { rule: "Counts gaps of 45 minutes or more in a fixed 9:00 AM to 5:00 PM window.", recorded: `${scheduleGaps().length} gaps found.`, limits: "The window is fixed and ignores provider hours, breaks and time off.", sources: [{ label: "Calendar", href: "/calendar" }] } },
+        { id: "i4", title: "Follow-ups", detail: `${followUpBuckets().overdue.length} overdue and ${followUpBuckets().today.length} due today.`, action: "review", href: "/follow-ups", why: { rule: "Counts Open follow-ups by due date against today.", recorded: "Due dates and statuses on follow-up records.", sources: [{ label: "Follow-ups", href: "/follow-ups" }] } },
       ];
     },
     summary: () => "4 observations from today's activity",

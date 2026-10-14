@@ -101,7 +101,7 @@ function Fields({ fields, v, set, err }: { fields: FormField[]; v: Record<string
       return (
         <Field key={f.id} label={label} required={f.required} error={err[f.id]} hint={f.helper}>
           {f.type === "long" ? <Textarea value={v[f.id] ?? ""} onChange={(e) => set(f.id, e.target.value)} /> : f.type === "select" || f.type === "yesno" ? <Select value={v[f.id] ?? ""} onChange={(e) => set(f.id, e.target.value)}><option value="">Select</option>{(f.type === "yesno" ? ["Yes", "No"] : f.options ?? []).map((o) => <option key={o}>{o}</option>)}</Select>
-            : f.type === "multi" ? <Input readOnly value={v[f.id] ?? ""} placeholder="Choose below" /> : f.type === "file" ? <Input type="file" /> : <Input type={f.type === "number" ? "number" : f.type === "date" ? "date" : "text"} value={v[f.id] ?? ""} onChange={(e) => set(f.id, e.target.value)} />}
+            : f.type === "multi" ? <div role="group" aria-label={label} className="grid gap-1.5 sm:grid-cols-2">{(f.options ?? []).map((o) => { const cur = (v[f.id] ?? "").split(", ").filter(Boolean); return <label key={o} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={cur.includes(o)} onChange={(e) => set(f.id, (e.target.checked ? [...cur, o] : cur.filter((x) => x !== o)).join(", "))} />{o}</label>; })}{!(f.options ?? []).length && <p className="text-xs text-muted">No options have been set for this question.</p>}</div> : f.type === "file" ? <Input type="file" /> : <Input type={f.type === "number" ? "number" : f.type === "date" ? "date" : "text"} value={v[f.id] ?? ""} onChange={(e) => set(f.id, e.target.value)} />}
         </Field>
       );
     })}</div>
@@ -152,7 +152,7 @@ export function FormsTab({ p }: { p: Patient }) {
       <p className="text-xs text-muted">Submitted responses keep the template version they were completed with. A signature here is a typed name recorded in the app. It is not a legally binding e-signature, and no expiry is tracked.</p>
       <Modal open={!!tpl} onOpenChange={(o) => !o && setTid(null)} width={560} title={tpl?.name ?? ""} description={tpl?.description}
         footer={<><Button variant="secondary" onClick={() => setTid(null)}>Cancel</Button><Button loading={submit.pending} onClick={send}>Submit form</Button></>}>
-        {tpl && <div className="space-y-4"><Field label="Link to visit (optional)"><Select value={visitId} onChange={(e) => setVisitId(e.target.value)}><option value="">Not linked</option>{mine.map((x) => <option key={x.id} value={x.id}>{fmtDate(x.date)} · {x.type}</option>)}</Select></Field><Fields fields={tpl.fields} v={v} set={(id, val) => setV({ ...v, [id]: val })} err={err} /></div>}
+        {tpl && <div className="space-y-4"><p className="rounded-lg bg-cloud px-3 py-2 text-xs text-slate-600">Form template v{tpl.version} ({tpl.status}). Submitting creates a response on {p.first} {p.last}&apos;s record. A typed name is not a legally binding signature.</p><Field label="Link to visit (optional)"><Select value={visitId} onChange={(e) => setVisitId(e.target.value)}><option value="">Not linked</option>{mine.map((x) => <option key={x.id} value={x.id}>{fmtDate(x.date)} · {x.type}</option>)}</Select></Field><Fields fields={tpl.fields} v={v} set={(id, val) => setV({ ...v, [id]: val })} err={err} /></div>}
       </Modal>
     </div>
   );

@@ -15,7 +15,7 @@ const tone = (s: string) => (s === "Published" ? "mint" : s === "Draft" ? "peach
 
 export function FormsSection() {
   const { data, isLoading } = useTemplates(); const { can } = useRole(); const save = useAction(apiC.saveTemplate);
-  const [edit, setEdit] = useState<FormTemplate | null>(null); const [f, setF] = useState({ type: "", status: "" });
+  const [edit, setEdit] = useState<FormTemplate | null>(null); const [f, setF] = useState({ type: "", status: "" }); const [preview, setPreview] = useState<FormTemplate | null>(null);
   const rows = (data ?? []).filter((t) => (!f.type || t.type === f.type) && (!f.status || t.status === f.status));
   if (edit) return <Builder t={edit} onClose={() => setEdit(null)} />;
   return (
@@ -29,16 +29,36 @@ export function FormsSection() {
         <div className="overflow-x-auto"><table className="w-full min-w-[760px]"><thead className="border-b border-line bg-cloud/50"><tr><Th>Form</Th><Th>Type</Th><Th>Specialty</Th><Th>Version</Th><Th>Fields</Th><Th>Status</Th><Th /></tr></thead>
           <tbody className="divide-y divide-line">{rows.map((t) => (
             <tr key={t.id} className="hover:bg-cloud/40"><Td className="font-medium">{t.name}<span className="block text-xs font-normal text-muted">{t.description}</span></Td><Td>{t.type}</Td><Td>{t.specialty}</Td><Td>v{t.version}</Td><Td>{t.fields.length}</Td><Td><Badge tone={tone(t.status)}>{t.status}</Badge></Td>
-              <Td className="text-right"><div className="flex justify-end gap-1"><Button size="sm" variant="ghost" onClick={() => setEdit(structuredClone(t))} disabled={!can("settings")}>Edit</Button>
+              <Td className="text-right"><div className="flex justify-end gap-1"><Button size="sm" variant="ghost" aria-label={`Preview ${t.name}`} onClick={() => setPreview(t)}><Eye className="size-4" aria-hidden />Preview</Button><Button size="sm" variant="ghost" onClick={() => setEdit(structuredClone(t))} disabled={!can("settings")}>Edit</Button>
                 <Button size="sm" variant="ghost" aria-label={`Duplicate ${t.name}`} disabled={!can("settings")} onClick={async () => { await save.run({ ...structuredClone(t), id: `ft${Date.now()}`, name: `${t.name} (copy)`, version: 1, status: "Draft" }); toast.success("Duplicated as a draft"); }}><Copy className="size-4" /></Button>
                 {t.status !== "Archived" && <Button size="sm" variant="ghost" disabled={!can("settings")} onClick={async () => { await save.run({ ...t, status: "Archived" }); toast.success("Form archived. Past responses are unchanged."); }}>Archive</Button>}</div></Td></tr>))}</tbody></table></div>)}
+      <FormPreview t={preview} onClose={() => setPreview(null)} />
     </Panel>
+  );
+}
+
+/** A read-only look at a form template as a patient would see it. It never creates a response, signs a form or changes consent. */
+export function FormPreview({ t, onClose }: { t: FormTemplate | null; onClose: () => void }) {
+  const asked = t?.fields.filter((f) => f.type !== "instructions") ?? [];
+  const selects = t?.fields.filter((f) => f.type === "select") ?? [];
+  return (
+    <Modal open={!!t} onOpenChange={(o) => !o && onClose()} title={t ? `Preview: ${t.name || "Untitled form"}` : "Preview"} description={t?.description} width={560} footer={<Button variant="secondary" onClick={onClose}>Close preview</Button>}>
+      {t && (
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-2 text-xs"><Badge tone={tone(t.status)}>{t.status}</Badge><Badge>{t.type}</Badge><span className="text-muted">Version {t.version}, {asked.length} question{asked.length === 1 ? "" : "s"}, {asked.filter((f) => f.required).length} required</span></div>
+          <p className="rounded-lg bg-cloud px-3 py-2 text-xs text-slate-600">Preview only. This is the form template, not a patient&apos;s response. Nothing here is saved, signed or recorded as consent.</p>
+          {t.fields.length === 0 ? <EmptyState title="This form has no fields yet" text="Edit the form to add questions." /> : (
+            <fieldset disabled aria-label="Form preview, read only" className="min-w-0 space-y-4 border-0 p-0"><FormFields fields={t.fields} v={{}} set={() => {}} err={{}} /></fieldset>)}
+          {selects.length > 0 && <div className="rounded-lg border border-line p-3 text-xs"><p className="mb-1 font-medium text-slate-600">Answer options</p><ul className="space-y-0.5">{selects.map((f) => <li key={f.id}><span className="font-medium">{f.label}:</span> <span className="text-muted">{(f.options ?? []).join(", ") || "no options set"}</span></li>)}</ul></div>}
+          {t.fields.some((f) => f.type === "file") && <p className="text-xs text-muted">File questions are shown, but uploaded files are not stored in this demo.</p>}
+        </div>)}
+    </Modal>
   );
 }
 
 function Builder({ t: init, onClose }: { t: FormTemplate; onClose: () => void }) {
   const save = useAction(apiC.saveTemplate);
-  const [t, setT] = useState(init); const [sel, setSel] = useState<string | null>(init.fields[0]?.id ?? null); const [prev, setPrev] = useState(false); const [pv, setPv] = useState<Record<string, string>>({});
+  const [t, setT] = useState(init); const [sel, setSel] = useState<string | null>(init.fields[0]?.id ?? null); const [prev, setPrev] = useState(false);
   const [err, setErr] = useState<string[]>([]);
   const field = t.fields.find((x) => x.id === sel);
   const upd = (id: string, p: Partial<FormField>) => setT({ ...t, fields: t.fields.map((x) => (x.id === id ? { ...x, ...p } : x)) });
@@ -71,7 +91,7 @@ function Builder({ t: init, onClose }: { t: FormTemplate; onClose: () => void })
             {field.type === "file" && <p className="text-xs text-muted">Uploads are stored with the response. Signature capture is not available; use a typed name field.</p>}</div> : <EmptyState title="Select a field" />}</Panel>
       </div>
       <p className="text-xs text-muted">Publishing creates a new version. Submitted responses keep the version they were completed with.</p>
-      <Modal open={prev} onOpenChange={setPrev} title={t.name || "Form preview"} description={t.description} width={560} footer={<Button variant="secondary" onClick={() => setPrev(false)}>Close preview</Button>}><FormFields fields={t.fields} v={pv} set={(id, val) => setPv({ ...pv, [id]: val })} err={{}} /></Modal>
+      <FormPreview t={prev ? t : null} onClose={() => setPrev(false)} />
     </div>
   );
 }

@@ -1,7 +1,8 @@
 "use client";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { CheckCheck, Play } from "lucide-react";
+import Link from "next/link";
+import { CheckCheck, ChevronDown, Play } from "lucide-react";
 import { toast } from "sonner";
 import { Badge, Button, EmptyState, PageHeader, Panel, PanelHeader, Sheet, Td, Th } from "@/components/ui";
 import { PrepCard } from "@/components/app/evi";
@@ -103,6 +104,17 @@ function Agents() {
                 <li key={f.id} className={`rounded-lg border border-line p-3.5 ${done ? "opacity-60" : ""}`}>
                   <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-medium">{f.title}</p><p className="text-[13px] text-muted">{f.detail}</p></div>{done && <Badge tone="mint">Reviewed</Badge>}</div>
                   {!done && <div className="mt-3 flex flex-wrap gap-2">{actions(f).map((x) => <Button key={x.label} size="sm" variant={x.primary ? "primary" : "secondary"} onClick={x.run}>{x.label}</Button>)}<Button size="sm" variant="ghost" onClick={() => setReviewed(new Set([...reviewed, f.id]))}>Mark reviewed</Button></div>}
+                  <details className="group mt-2.5 text-[13px]">
+                    <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-xs font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">Why this appeared<ChevronDown className="size-3.5 transition-transform group-open:rotate-180" aria-hidden /></summary>
+                    {f.why ? (
+                      <dl className="mt-1.5 space-y-1.5 rounded-lg bg-cloud px-3 py-2 text-xs">
+                        <div><dt className="font-medium text-slate-600">Rule (fixed, not AI)</dt><dd>{f.why.rule}</dd></div>
+                        <div><dt className="font-medium text-slate-600">What is recorded</dt><dd>{f.why.recorded}</dd></div>
+                        {f.why.limits && <div><dt className="font-medium text-slate-600">What it cannot tell</dt><dd>{f.why.limits}</dd></div>}
+                        <div><dt className="font-medium text-slate-600">Source records</dt><dd className="flex flex-wrap gap-x-3">{f.why.sources.map((x) => <Link key={x.href + x.label} href={x.href} className="text-primary hover:underline">{x.label}</Link>)}</dd></div>
+                      </dl>
+                    ) : <p className="mt-1.5 rounded-lg bg-cloud px-3 py-2 text-xs">The reason cannot be fully established from the available record.</p>}
+                  </details>
                   {prepFor === f.id && f.patientId && <PrepCard prep={prepSummary(f.patientId, f.apptId)} />}
                 </li>);
             })}

@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -70,6 +70,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [apptId, setApptId] = useState<string | null>(null);
+  /** The control that opened the appointment panel, so focus goes back to it (or to its replacement) when the panel closes. */
+  const opener = useRef<{ el: HTMLElement | null; label: string | null }>({ el: null, label: null });
+  const openAppt = (id: string) => { const el = document.activeElement as HTMLElement | null; opener.current = { el, label: el?.getAttribute("aria-label") ?? null }; setApptId(id); };
+  const closeAppt = () => {
+    setApptId(null);
+    setTimeout(() => { const { el, label } = opener.current; const target = el?.isConnected ? el : label ? Array.from(document.querySelectorAll<HTMLElement>("[aria-label]")).find((x) => x.getAttribute("aria-label") === label) : null; target?.focus(); }, 0);
+  };
   const [newAppt, setNewAppt] = useState<{ open: boolean; prefill?: Partial<AppointmentInput>; onCreated?: (a: { id: string; patientId: string }) => void }>({ open: false });
   const [newPatient, setNewPatient] = useState(false);
   const [newFu, setNewFu] = useState<{ open: boolean; prefill?: { patientId?: string; visitId?: string } }>({ open: false });
@@ -90,7 +97,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => { try { const v = localStorage.getItem("pms.sidebar"); setCollapsed(v ? v === "1" : window.innerWidth < 1024); } catch {} }, []);
 
   const ui = useMemo<UIState>(() => ({
-    openAppt: setApptId,
+    openAppt,
     newAppt: (prefill, opts) => setNewAppt({ open: true, prefill, onCreated: opts?.onCreated }),
     newPatient: () => setNewPatient(true),
     newFollowUp: (prefill) => setNewFu({ open: true, prefill }),
@@ -228,7 +235,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </Menu>
       </nav>
 
-      <AppointmentPanel id={apptId} onClose={() => setApptId(null)} />
+      <AppointmentPanel id={apptId} onClose={closeAppt} />
       <NewAppointmentPanel open={newAppt.open} prefill={newAppt.prefill} onCreated={newAppt.onCreated} onClose={() => setNewAppt({ open: false })} />
       <NewPatientPanel open={newPatient} onClose={() => setNewPatient(false)} />
       <NewFollowUpPanel open={newFu.open} prefill={newFu.prefill} onClose={() => setNewFu({ open: false })} />

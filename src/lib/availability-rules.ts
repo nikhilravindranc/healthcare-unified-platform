@@ -86,3 +86,14 @@ export function onlineWindowIssue(v: { date: string; time: string; nowDate: stri
   if (v.leadHours > 0 && ahead * 1440 + toMin(v.time) - v.nowMinutes < v.leadHours * 60) return `Online bookings need at least ${v.leadHours} hour${v.leadHours === 1 ? "" : "s"} notice.`;
   return null;
 }
+/**
+ * What the booking rules will actually read from a provider's availability text, so the screen shows what is enforced.
+ * Text that cannot be read gives no rule for that part, and is reported rather than guessed.
+ */
+export function describeAvailability(p: { hours?: string; timeOff?: string }, year = 2026): { days: string | null; hours: string | null; timeOff: string | null; unreadableTimeOff: string[]; enforced: boolean } {
+  const r = parseProviderHours(p.hours ?? "");
+  const days = r.days ? r.days.map((d) => DAY_NAMES[d]).join(", ") : null;
+  const hours = r.start != null && r.end != null ? `${fmt(r.start)} to ${fmt(r.end)}` : null;
+  const off = p.timeOff?.trim() ? parseDateRanges(p.timeOff, year) : { ranges: [], invalid: [] as string[] };
+  return { days, hours, timeOff: p.timeOff?.trim() || null, unreadableTimeOff: off.invalid, enforced: !!(days || hours) };
+}

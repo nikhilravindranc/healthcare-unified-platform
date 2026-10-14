@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Alert, Badge, Button, Checkbox, EmptyState, Field, Input, Panel, PanelHeader, Select, Sheet, SkeletonRows, Td, Textarea, Th } from "@/components/ui";
 import { CAPABILITIES, CLINIC_CONFIG, ROLE_PERMS, SERVICE_CAPS, SERVICE_PRICE, money, type Role } from "@/lib/clinical";
 import { api } from "@/lib/db";
+import { describeAvailability } from "@/lib/availability-rules";
 import { useAction, useRefs, useRole } from "@/lib/hooks";
 import { saveSettings, useSettings } from "@/lib/settings";
 import type { Location, Provider, Room, Service } from "@/lib/types";
@@ -29,7 +30,7 @@ export function ProvidersSection() {
   return (<>
     <Shell title="Providers" loading={isLoading} action={!deny && <Button size="sm" onClick={() => setEdit({ status: "Active", locationIds: [], serviceIds: [], hours: "Mon–Fri · 9:00 AM–5:00 PM" })}><Plus className="size-4" />New provider</Button>}>
       <table className="w-full min-w-[820px]"><thead className="border-b border-line bg-cloud/50"><tr><Th>Provider</Th><Th>Specialty</Th><Th>Availability</Th><Th>Services</Th><Th>Locations</Th><Th>Status</Th></tr></thead>
-        <tbody className="divide-y divide-line">{data?.providers.map((p) => <tr key={p.id} tabIndex={0} className={deny ? "" : "cursor-pointer hover:bg-cloud/40"} onClick={() => !deny && setEdit(p)} onKeyDown={(e) => e.key === "Enter" && !deny && setEdit(p)}><Td><span className="font-medium">{p.name}</span><span className="block text-xs text-muted">{p.title ?? "Provider"}</span></Td><Td>{p.specialty}</Td><Td>{p.hours}</Td><Td>{p.serviceIds.length} services</Td><Td>{p.locationIds.map((l) => data.locations.find((x) => x.id === l)?.name.replace("Brightwell ", "")).join(", ")}</Td><Td><Badge tone={tone(p.status)}>{p.status}</Badge></Td></tr>)}</tbody></table>
+        <tbody className="divide-y divide-line">{data?.providers.map((p) => <tr key={p.id} tabIndex={0} className={deny ? "" : "cursor-pointer hover:bg-cloud/40"} onClick={() => !deny && setEdit(p)} onKeyDown={(e) => e.key === "Enter" && !deny && setEdit(p)}><Td><span className="font-medium">{p.name}</span><span className="block text-xs text-muted">{p.title ?? "Provider"}</span></Td><Td>{p.specialty}</Td><Td><Availability p={p} /></Td><Td>{p.serviceIds.length} services</Td><Td>{p.locationIds.map((l) => data.locations.find((x) => x.id === l)?.name.replace("Brightwell ", "")).join(", ")}</Td><Td><Badge tone={tone(p.status)}>{p.status}</Badge></Td></tr>)}</tbody></table>
     </Shell>
     {edit && data && <ProviderSheet p={edit} onClose={() => setEdit(null)} />}
   </>);
@@ -47,8 +48,9 @@ function ProviderSheet({ p, onClose }: { p: Partial<Provider>; onClose: () => vo
         <Field label="Name" required error={err.name}><Input value={v.name ?? ""} onChange={(e) => setV({ ...v, name: e.target.value })} placeholder="Dr. First Last" /></Field>
         <div className="grid grid-cols-2 gap-3"><Field label="Title / role"><Input value={v.title ?? ""} onChange={(e) => setV({ ...v, title: e.target.value })} /></Field><Field label="Specialty" required error={err.specialty}><Input value={v.specialty ?? ""} onChange={(e) => setV({ ...v, specialty: e.target.value })} /></Field></div>
         <div className="grid grid-cols-2 gap-3"><Field label="Email" error={err.email}><Input value={v.email ?? ""} onChange={(e) => setV({ ...v, email: e.target.value })} /></Field><Field label="Phone (optional)"><Input value={v.phone ?? ""} onChange={(e) => setV({ ...v, phone: e.target.value })} /></Field></div>
-        <Field label="Working hours"><Input value={v.hours ?? ""} onChange={(e) => setV({ ...v, hours: e.target.value })} /></Field>
+        <Field label="Working hours" hint="Written like Mon–Fri · 9:00 AM–5:00 PM. This is the text the booking rules read."><Input value={v.hours ?? ""} onChange={(e) => setV({ ...v, hours: e.target.value })} /></Field>
         <Field label="Time off"><Input value={v.timeOff ?? ""} onChange={(e) => setV({ ...v, timeOff: e.target.value })} placeholder="e.g. Oct 20 to Oct 24" /></Field>
+        <div className="rounded-lg bg-cloud px-3 py-2 text-xs"><p className="mb-1 font-medium text-slate-600">What the booking rules will use</p><Availability p={v} /><p className="mt-1.5 text-muted">The practice break, closed dates, notice period and booking window are practice-wide and are set in Settings and Online booking.</p></div>
         <Field label="Status"><Select value={v.status ?? "Active"} onChange={(e) => setV({ ...v, status: e.target.value as Provider["status"] })}><option>Active</option><option>On leave</option><option>Inactive</option></Select></Field>
         <div>{err.loc && <p role="alert" className="mb-1 text-xs text-danger">{err.loc}</p>}<MultiCheck label="Locations" options={(data?.locations ?? []).map((l) => ({ value: l.id, label: l.name }))} value={v.locationIds ?? []} onChange={(x) => setV({ ...v, locationIds: x })} /></div>
         <MultiCheck label="Permitted services" options={(data?.services ?? []).map((s) => ({ value: s.id, label: s.name }))} value={v.serviceIds ?? []} onChange={(x) => setV({ ...v, serviceIds: x })} />
@@ -65,7 +67,7 @@ export function ServicesSection() {
     <Shell title="Services & treatments" loading={isLoading} action={!deny && <Button size="sm" onClick={() => setEdit({ status: "Active", duration: 30, providerIds: [], locationIds: [] })}><Plus className="size-4" />New service</Button>}
       note={`Clinic type: ${st.clinicType}. ${CLINIC_CONFIG[st.clinicType].capabilityHint}`}>
       <table className="w-full min-w-[860px]"><thead className="border-b border-line bg-cloud/50"><tr><Th>Service</Th><Th>Category</Th><Th>Duration</Th><Th>Price</Th><Th>Providers</Th><Th>Capabilities</Th><Th>Status</Th></tr></thead>
-        <tbody className="divide-y divide-line">{data?.services.map((s) => { const caps = SERVICE_CAPS[s.id]; return <tr key={s.id} tabIndex={0} className={deny ? "" : "cursor-pointer hover:bg-cloud/40"} onClick={() => !deny && setEdit(s)} onKeyDown={(e) => e.key === "Enter" && !deny && setEdit(s)}><Td className="font-medium">{s.name}</Td><Td>{s.category}</Td><Td>{s.duration} min</Td><Td>{money(SERVICE_PRICE[s.id] ?? 0)}</Td><Td>{s.providerIds.map((p) => data.providers.find((x) => x.id === p)?.short).join(", ") || "Unassigned"}</Td><Td>{caps ? <span className="text-xs text-muted">{CAPABILITIES.filter(([k]) => caps[k]).length} enabled</span> : <span className="text-xs text-muted">None</span>}</Td><Td><Badge tone={tone(s.status)}>{s.status}</Badge></Td></tr>; })}</tbody></table>
+        <tbody className="divide-y divide-line">{data?.services.map((s) => { const caps = SERVICE_CAPS[s.id]; return <tr key={s.id} tabIndex={0} className={deny ? "" : "cursor-pointer hover:bg-cloud/40"} onClick={() => !deny && setEdit(s)} onKeyDown={(e) => e.key === "Enter" && !deny && setEdit(s)}><Td className="font-medium">{s.name}</Td><Td>{s.category}</Td><Td>{s.duration} min</Td><Td>{money(SERVICE_PRICE[s.id] ?? 0)}</Td><Td>{s.providerIds.map((p) => data.providers.find((x) => x.id === p)?.short).join(", ") || "Unassigned"}</Td><Td>{caps ? <span className="text-xs text-muted">{CAPABILITIES.filter(([k]) => caps[k]).length} enabled</span> : <span className="text-xs text-muted">None</span>}</Td><Td><Badge tone={tone(s.status)}>{s.status === "Inactive" ? "Inactive · not offered for new bookings" : "Active"}</Badge></Td></tr>; })}</tbody></table>
     </Shell>
     {edit && data && <ServiceSheet s={edit} onClose={() => setEdit(null)} />}
   </>);
@@ -86,6 +88,7 @@ function ServiceSheet({ s, onClose }: { s: Partial<Service>; onClose: () => void
         <Field label="Name" required error={err.name}><Input value={v.name ?? ""} onChange={(e) => setV({ ...v, name: e.target.value })} /></Field>
         <div className="grid grid-cols-2 gap-3"><Field label="Category"><Select value={v.category ?? "Consultation"} onChange={(e) => setV({ ...v, category: e.target.value })}>{["Consultation", "Aesthetics", "Dermatology", "Physiotherapy", "Dental", "Review", "Wellness"].map((c) => <option key={c}>{c}</option>)}</Select></Field><Field label="Specialty"><Input value={v.specialty ?? ""} onChange={(e) => setV({ ...v, specialty: e.target.value })} /></Field></div>
         <div className="grid grid-cols-3 gap-3"><Field label="Duration (min)" required error={err.duration}><Input type="number" value={v.duration ?? 30} onChange={(e) => setV({ ...v, duration: Number(e.target.value) })} /></Field><Field label="Price" error={err.price}><Input type="number" min="0" value={price} onChange={(e) => setPrice(e.target.value)} /></Field><Field label="Status"><Select value={v.status ?? "Active"} onChange={(e) => setV({ ...v, status: e.target.value as Service["status"] })}><option>Active</option><option>Inactive</option></Select></Field></div>
+        <p className="-mt-1 text-xs text-muted">{v.status === "Inactive" ? "Inactive: no longer offered on the online booking page or in the new appointment form. Existing appointments, visits and invoices keep this service and their history." : "Active: offered for new bookings. Turning it off later does not delete any appointment, visit or invoice."}</p>
         <Field label="Description"><Textarea value={v.description ?? ""} onChange={(e) => setV({ ...v, description: e.target.value })} /></Field>
         <MultiCheck label="Eligible providers" options={(data?.providers ?? []).map((p) => ({ value: p.id, label: p.short }))} value={v.providerIds ?? []} onChange={(x) => setV({ ...v, providerIds: x })} />
         <MultiCheck label="Locations" options={(data?.locations ?? []).map((l) => ({ value: l.id, label: l.name }))} value={v.locationIds ?? []} onChange={(x) => setV({ ...v, locationIds: x })} />
@@ -110,9 +113,9 @@ export function LocationsSection() {
 export function RoomsSection() {
   const { data, isLoading } = useRefs(); const deny = useDeny(); const [edit, setEdit] = useState<Partial<Room> | null>(null);
   return (<>
-    <Shell title="Rooms & resources" loading={isLoading} action={!deny && <Button size="sm" onClick={() => setEdit({ locationId: "dt", type: "Consultation room", status: "Active" })}><Plus className="size-4" />New room</Button>}>
+    <Shell title="Rooms & resources" note="Rooms are not linked to services in this version. Any active room at the chosen location can be picked for any service, and only double-booking of the same room is checked. Room suitability by service is not enforced." loading={isLoading} action={!deny && <Button size="sm" onClick={() => setEdit({ locationId: "dt", type: "Consultation room", status: "Active" })}><Plus className="size-4" />New room</Button>}>
       <table className="w-full min-w-[720px]"><thead className="border-b border-line bg-cloud/50"><tr><Th>Room</Th><Th>Location</Th><Th>Resource type</Th><Th>Capacity</Th><Th>Availability</Th><Th>Status</Th></tr></thead>
-        <tbody className="divide-y divide-line">{data?.rooms.map((r) => <tr key={r.id} tabIndex={0} className={deny ? "" : "cursor-pointer hover:bg-cloud/40"} onClick={() => !deny && setEdit(r)} onKeyDown={(e) => e.key === "Enter" && !deny && setEdit(r)}><Td className="font-medium">{r.name}</Td><Td>{data.locations.find((l) => l.id === r.locationId)?.name}</Td><Td>{r.type}</Td><Td>{r.capacity ?? 1}</Td><Td>{r.availability}</Td><Td><Badge tone={tone(r.status ?? "Active")}>{r.status ?? "Active"}</Badge></Td></tr>)}</tbody></table>
+        <tbody className="divide-y divide-line">{data?.rooms.map((r) => <tr key={r.id} tabIndex={0} className={deny ? "" : "cursor-pointer hover:bg-cloud/40"} onClick={() => !deny && setEdit(r)} onKeyDown={(e) => e.key === "Enter" && !deny && setEdit(r)}><Td className="font-medium">{r.name}</Td><Td>{data.locations.find((l) => l.id === r.locationId)?.name}</Td><Td>{r.type}</Td><Td>{r.capacity ?? 1}</Td><Td>{r.availability}</Td><Td><Badge tone={tone(r.status ?? "Active")}>{r.status === "Inactive" ? "Inactive · not offered for new bookings" : "Active"}</Badge></Td></tr>)}</tbody></table>
     </Shell>
     {edit && <EntitySheet title={edit.id ? "Edit room" : "New room"} kind="rooms" value={edit} onClose={() => setEdit(null)} label="Room" required={["name"]} fields={[["name", "Name"], ["type", "Resource type"], ["capacity", "Capacity", "number"], ["availability", "Availability"]]} statusOptions={["Active", "Inactive"]} extra={(v, set) => <Field label="Location"><Select value={String(v.locationId ?? "dt")} onChange={(e) => set({ locationId: e.target.value })}>{data?.locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</Select></Field>} />}
   </>);
@@ -161,6 +164,18 @@ export function Integrations() {
         <div className="space-y-2.5">{([["crm", "CRM"], ["booking", "Online Bookings"], ["campaigns", "Campaigns"]] as const).map(([k, l]) => (
           <Checkbox key={k} label={l} checked={st.modules[k] !== false} onChange={(v) => { if (!can("settings")) return toast.error("Only roles with Settings access can change this"); saveSettings({ modules: { ...st.modules, [k]: v } }); toast(`${l} ${v ? "turned on" : "turned off"}`); }} />))}</div>
       </Panel>
+    </div>
+  );
+}
+
+/** Shows what the booking rules actually read from a provider's availability text. Nothing is assumed when the text cannot be read. */
+function Availability({ p }: { p: { hours?: string; timeOff?: string } }) {
+  const a = describeAvailability(p);
+  return (
+    <div className="text-[13px]">
+      {a.enforced ? <>{a.days ? <p>{a.days}</p> : <p className="text-muted">Days not readable, so any day is allowed</p>}{a.hours ? <p className="text-muted">{a.hours}</p> : <p className="text-muted">Hours not readable, so any time in clinic hours is allowed</p>}</>
+        : <p className="text-muted">{p.hours?.trim() ? `"${p.hours}" cannot be read, so no provider hours rule is applied` : "No hours set, so no provider hours rule is applied"}</p>}
+      {a.timeOff && <p className="text-xs text-muted">Time off: {a.timeOff}{a.unreadableTimeOff.length ? ` (not readable: ${a.unreadableTimeOff.join(", ")})` : ""}</p>}
     </div>
   );
 }

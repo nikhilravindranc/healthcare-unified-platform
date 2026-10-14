@@ -78,6 +78,11 @@ Full model: `docs/IDENTITY_DECISIONS.md` section 10.
    - Marketing sees name, stage, source and appointment date and status only;
    - message text needs enquiry management.
 
+### 10. Operational data the frontend now shows (confirm when you build it)
+1. Stock movements need a type (opening, received, used, correction), a date, an actor and an optional visit id, and must be written when the visit completes or the count changes, in one transaction with the quantity. The demo's changes are not saved.
+2. Provider availability, time off, practice break and closed dates should be structured data, not the free text the demo parses. Room-to-service suitability is not modelled yet.
+3. Agent findings should keep `rule`, `recorded facts` and source record ids, so "why this appeared" can be reproduced and audited.
+
 ## What to send back
 
 1. Confirm each rule above is buildable, or say what you would change and why.

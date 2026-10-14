@@ -2,7 +2,8 @@
 import { useMemo, useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { Alert, Badge, Button, EmptyState, Field, Input, Modal, Panel, PanelHeader, Select, Sheet, SkeletonRows, Td, Th } from "@/components/ui";
-import { apiC, invStatus, money } from "@/lib/clinical";
+import Link from "next/link";
+import { apiC, invStatus, MOVE_LABEL, moveKind, money } from "@/lib/clinical";
 import { useAction, useInventory, useRefs, useRole } from "@/lib/hooks";
 import { fmtDate } from "@/lib/db";
 import type { InventoryItem } from "@/lib/types";
@@ -43,11 +44,12 @@ export function InventorySection() {
         footer={open && <><Button variant="secondary" onClick={() => { setA({ qty: "", reason: "" }); setAerr(""); setAdj({ item: open, kind: "correct" }); }}>Correct count</Button><Button variant="secondary" onClick={() => { setA({ qty: "", reason: "Stock received" }); setAerr(""); setAdj({ item: open, kind: "receive" }); }}>Receive stock</Button></>}>
         {open && (() => { const live = data?.inventory.find((x) => x.id === open.id) ?? open; return (<div className="space-y-4">
           <dl className="grid grid-cols-2 gap-3 text-[13px]"><div><dt className="text-xs text-muted">In stock</dt><dd className="text-lg font-semibold">{live.qty} {live.unit}</dd></div><div><dt className="text-xs text-muted">Status</dt><dd><Badge tone={tone(invStatus(live))}>{invStatus(live)}</Badge></dd></div><div><dt className="text-xs text-muted">Lot</dt><dd>{live.lot ?? "Not tracked"}</dd></div><div><dt className="text-xs text-muted">Expiry</dt><dd>{live.expiry ? fmtDate(live.expiry, true) : "—"}</dd></div></dl>
-          <div><h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">Movements</h3>{moves(live.id).length === 0 ? <p className="text-[13px] text-muted">No movements.</p> : <ul className="divide-y divide-line text-[13px]">{moves(live.id).map((m) => <li key={m.id} className="flex justify-between py-2"><span>{fmtDate(m.date)} · {m.reason}<span className="block text-xs text-muted">{m.by}</span></span><span className={m.delta < 0 ? "text-[#8F2D2D]" : "text-[#2A8577]"}>{m.delta > 0 ? "+" : ""}{m.delta}</span></li>)}</ul>}</div></div>); })()}
+          <ReorderLevel item={live} />
+          <div><h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">Movements</h3>{moves(live.id).length === 0 ? <p className="text-[13px] text-muted">No movements recorded for this item.</p> : <ul className="divide-y divide-line text-[13px]">{moves(live.id).map((m) => <li key={m.id} className="flex items-start justify-between gap-3 py-2"><span className="min-w-0"><Badge tone={m.delta < 0 ? "peach" : "mint"}>{MOVE_LABEL[moveKind(m)]}</Badge><span className="mt-0.5 block">{fmtDate(m.date, true)}{m.reason ? ` · ${m.reason}` : ""}</span><span className="block text-xs text-muted">{m.by}{m.visitId && <> · <Link href={`/visits/${m.visitId}`} className="text-primary hover:underline">Visit {m.visitId}</Link></>}</span></span><span className={m.delta < 0 ? "shrink-0 font-medium text-[#8F2D2D]" : "shrink-0 font-medium text-[#2A8577]"}>{m.delta > 0 ? "+" : ""}{m.delta} {live.unit}</span></li>)}</ul>}<p className="mt-2 text-xs text-muted">Changes made here apply to this demo session only and are not saved after a reload.</p></div></div>); })()}
       </Sheet>
 
       <Modal open={!!adj} onOpenChange={(o) => !o && setAdj(null)} title={adj?.kind === "receive" ? "Receive stock" : "Correct stock count"} description={adj?.item.name}
-        footer={<><Button variant="secondary" onClick={() => setAdj(null)}>Cancel</Button><Button loading={adjust.pending} onClick={async () => { const q2 = Number(a.qty); if (!(q2 > 0) && adj!.kind === "receive") return setAerr("Enter a quantity greater than zero"); if (adj!.kind === "correct" && (a.qty === "" || q2 < 0)) return setAerr("Enter the counted quantity"); if (!a.reason.trim()) return setAerr("A reason is required"); await adjust.run(adj!.item.id, adj!.kind === "receive" ? q2 : q2 - adj!.item.qty, a.reason); setAdj(null); }}>Save</Button></>}>
+        footer={<><Button variant="secondary" onClick={() => setAdj(null)}>Cancel</Button><Button loading={adjust.pending} onClick={async () => { const q2 = Number(a.qty); if (!(q2 > 0) && adj!.kind === "receive") return setAerr("Enter a quantity greater than zero"); if (adj!.kind === "correct" && (a.qty === "" || q2 < 0)) return setAerr("Enter the counted quantity"); if (!a.reason.trim()) return setAerr("A reason is required"); await adjust.run(adj!.item.id, adj!.kind === "receive" ? q2 : q2 - adj!.item.qty, a.reason, adj!.kind === "receive" ? "received" : "correction"); setAdj(null); }}>Save</Button></>}>
         <div className="space-y-4"><Field label={adj?.kind === "receive" ? `Quantity received (${adj?.item.unit})` : `Counted quantity (${adj?.item.unit})`} required error={aerr}><Input type="number" min="0" step="0.1" value={a.qty} onChange={(e) => { setA({ ...a, qty: e.target.value }); setAerr(""); }} /></Field><Field label="Reason" required><Input value={a.reason} onChange={(e) => setA({ ...a, reason: e.target.value })} placeholder="e.g. Delivery, stock count, wastage" /></Field></div>
       </Modal>
 
@@ -61,6 +63,18 @@ export function InventorySection() {
           <Field label="Price per unit"><Input type="number" min="0" value={n.price} onChange={(e) => setN({ ...n, price: e.target.value })} /></Field><Field label="Lot (optional)"><Input value={n.lot} onChange={(e) => setN({ ...n, lot: e.target.value })} /></Field><Field label="Expiry (optional)"><Input type="date" value={n.expiry} onChange={(e) => setN({ ...n, expiry: e.target.value })} /></Field>
         </div>
       </Modal>
+    </div>
+  );
+}
+
+/** The level at which stock is flagged. Editing it changes the status shown here, in the list and in Reports. */
+function ReorderLevel({ item }: { item: InventoryItem }) {
+  const save = useAction(apiC.setReorder, "Reorder level updated");
+  const [v, setV] = useState(String(item.reorder)); const [err, setErr] = useState("");
+  return (
+    <div className="rounded-lg bg-cloud px-3 py-2.5 text-[13px]">
+      <Field label="Reorder level" hint={`Stock is flagged Low at or below ${item.reorder} ${item.unit} and Out at zero.`} error={err}><Input type="number" min="0" className="w-28" value={v} onChange={(e) => { setV(e.target.value); setErr(""); }} /></Field>
+      <Button size="sm" variant="secondary" className="mt-2" loading={save.pending} disabled={v === String(item.reorder)} onClick={() => { const n = Number(v); if (v === "" || !(n >= 0)) return setErr("Enter zero or more"); save.run(item.id, n); }}>Save level</Button>
     </div>
   );
 }
