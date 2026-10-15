@@ -134,6 +134,7 @@ test("Activities: a call needs a link, logs once, and shows on the list as compl
   await dlg.getByLabel("Patient", { exact: true }).selectOption("P-10248");
   await dlg.getByLabel("Outcome").fill("Booked a review");
   await dlg.getByRole("button", { name: "Save activity" }).click();
+  await expect(dlg).toBeHidden();
   await page.getByLabel("Search activities").fill("Booked a review");
   await expect(page.getByRole("row").filter({ hasText: "Booked a review" })).toHaveCount(1);
   await expect(page.getByRole("row").filter({ hasText: "Booked a review" })).toContainText("Completed");

@@ -142,23 +142,23 @@ function Today({ initialTab }: { initialTab?: TodayTab }) {
     <div className="relative">
 
       <BannerSurface variant="today" aria-label="Welcome" className="anim-fade mb-5 px-5 py-5 sm:px-7 sm:py-6">
-        <div className="grid items-center gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+        <div className="grid items-center gap-x-6 gap-y-4 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,0.9fr)]">
           <div className="min-w-0">
             <p className="flex items-center gap-2 text-[13px] font-medium text-slate-600"><span className="grid size-8 place-items-center rounded-full bg-white/80 text-[#B7791F] shadow-sm"><DayIcon className="size-4" aria-hidden /></span>{fmtLong(TODAY)}, 2026<span className="text-slate-400" aria-hidden>·</span>{st.clinicName}</p>
             <h1 className="mt-2 text-[28px] font-semibold leading-tight tracking-tight">{greet}, {who}</h1>
             <p className="mt-1.5 max-w-xl text-[15px] leading-relaxed text-slate-700" aria-live="polite">{isLoading ? "Getting your day ready…" : daySentence}</p>
             {!isLoading && nextUp && <button type="button" onClick={() => ui.openAppt(nextUp.id)} className="mt-3 inline-flex max-w-full items-center gap-2 rounded-full bg-white/85 py-1 pl-1 pr-3 text-[13px] shadow-sm ring-1 ring-white transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"><PatientAvatar id={nextUp.patientId} name={pname(nextUp.patientId)} size={26} /><span className="truncate"><span className="text-muted">Next up </span><span className="font-medium">{pname(nextUp.patientId)}</span><span className="text-muted"> · {fmtTime(nextUp.time)}</span></span></button>}
-            <div role="group" aria-label="Today's appointment counts" className="mt-4 flex flex-wrap gap-2">
-              {summary.map((s) => {
-                const on = tab === "today" && s.key !== "" && sf === s.key;
-                return (
-                  <button key={s.label} type="button" aria-pressed={on} onClick={() => pickSummary(s.key)} aria-label={`${s.label}: ${isLoading ? "loading" : s.n}. ${s.key ? `Show only ${SF_LABEL[s.key as SFKey].toLowerCase()} in the schedule` : "Show the full day"}`}
-                    className={cn("flex items-center gap-2.5 rounded-xl border bg-white/75 px-3 py-2 text-left shadow-card backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40", on ? "border-primary ring-1 ring-primary/30" : "border-white/80")}>
-                    <span className={cn("grid size-8 place-items-center rounded-lg", s.chip)}><s.icon className="size-4" aria-hidden /></span>
-                    <span><span className="block text-lg font-semibold leading-none tabular-nums">{isLoading ? "–" : s.n}</span><span className="mt-0.5 block text-[11px] text-slate-600">{s.label}</span></span>
-                  </button>);
-              })}
-            </div>
+          </div>
+          <div role="group" aria-label="Today's appointment counts" className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2">
+            {summary.map((s) => {
+              const on = tab === "today" && s.key !== "" && sf === s.key;
+              return (
+                <button key={s.label} type="button" aria-pressed={on} onClick={() => pickSummary(s.key)} aria-label={`${s.label}: ${isLoading ? "loading" : s.n}. ${s.key ? `Show only ${SF_LABEL[s.key as SFKey].toLowerCase()} in the schedule` : "Show the full day"}`}
+                  className={cn("flex items-center gap-2.5 rounded-xl border bg-white/75 px-3 py-2 text-left shadow-card backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40", on ? "border-primary ring-1 ring-primary/30" : "border-white/80")}>
+                  <span className={cn("grid size-8 place-items-center rounded-lg", s.chip)}><s.icon className="size-4" aria-hidden /></span>
+                  <span><span className="block text-lg font-semibold leading-none tabular-nums">{isLoading ? "–" : s.n}</span><span className="mt-0.5 block text-[11px] text-slate-600">{s.label}</span></span>
+                </button>);
+            })}
           </div>
           <DailyQuote className="lg:ml-auto lg:max-w-md" />
         </div>

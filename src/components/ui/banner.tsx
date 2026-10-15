@@ -30,9 +30,9 @@ const L = "var(--lavender)";
 const K = "var(--peach)";
 
 /** The drawing on the right of a banner. Decorative only, so it is hidden from assistive technology and never takes clicks. */
-function Motif({ variant }: { variant: BannerVariant }) {
-  const base = "pointer-events-none absolute bottom-0 right-0 hidden h-[78%] w-[44%] min-w-[260px] sm:block";
-  const box = { viewBox: "0 0 400 160", preserveAspectRatio: "xMaxYMax meet", "aria-hidden": true, className: base } as const;
+function Motif({ variant, className }: { variant: BannerVariant; className?: string }) {
+  const base = className ?? "pointer-events-none absolute bottom-0 right-0 hidden h-[52%] w-[22%] min-w-[150px] opacity-30 sm:block";
+  const box = { viewBox: "0 0 400 160", preserveAspectRatio: "xMidYMid meet", "aria-hidden": true, className: base } as const;
   switch (variant) {
     case "today":
       return <svg {...box}><circle cx="318" cy="38" r="54" fill={K} opacity=".55" /><circle cx="318" cy="38" r="34" fill="#fff" opacity=".7" />{[78, 102, 128].map((r, i) => <circle key={r} cx="318" cy="38" r={r} fill="none" stroke={P} strokeOpacity={0.14 - i * 0.03} strokeWidth="1.5" />)}<path d="M40 150 C 120 90, 200 150, 290 110 S 400 90, 400 110 V160 H40Z" fill="#fff" opacity=".45" /><g stroke={P} strokeOpacity=".28" strokeWidth="2.5" strokeLinecap="round"><path d="M70 30v14M63 37h14" /><path d="M200 18v10M195 23h10" /><path d="M370 120v12M364 126h12" /></g></svg>;
@@ -64,11 +64,11 @@ function Motif({ variant }: { variant: BannerVariant }) {
 const SURFACE = "relative overflow-hidden rounded-3xl border border-white/70 shadow-card ring-1 ring-black/[0.03]";
 
 /** The coloured, illustrated surface used behind a screen's heading. Content goes inside it. */
-export function BannerSurface({ variant, as: Tag = "section", className, children, ...rest }: { variant: BannerVariant; as?: "section" | "header" | "div"; className?: string; children: React.ReactNode } & React.HTMLAttributes<HTMLElement>) {
+export function BannerSurface({ variant, as: Tag = "section", className, motif = true, children, ...rest }: { variant: BannerVariant; as?: "section" | "header" | "div"; className?: string; /** Draw the picture behind the content. Turn off where the content already makes room for it. */ motif?: boolean; children: React.ReactNode } & React.HTMLAttributes<HTMLElement>) {
   return (
     <Tag {...(rest as object)} className={cn(SURFACE, className)} style={{ background: BG[variant] }}>
       <span aria-hidden className="pointer-events-none absolute -left-16 -top-24 size-56 rounded-full bg-white/45 blur-3xl" />
-      <Motif variant={variant} />
+      {motif && <Motif variant={variant} />}
       <div className="relative">{children}</div>
     </Tag>
   );
@@ -94,17 +94,20 @@ export function BannerStat({ label, value, icon: Icon, tone = "blue", active, on
     : <div title={title} className={cls}>{body}</div>;
 }
 
-/** The banner at the top of a list screen: title, a line of help, the main actions and, optionally, small figures. */
+/** The banner at the top of a list screen: the title on the left, small figures in the centre and the main actions on the right. Kept short so the list is not pushed down. */
 export function Banner({ variant, title, subtitle, actions, stats, statsLabel = "Key figures", aside, className }: { variant: BannerVariant; title: string; subtitle?: React.ReactNode; actions?: React.ReactNode; stats?: React.ReactNode; statsLabel?: string; aside?: React.ReactNode; className?: string }) {
   return (
-    <BannerSurface variant={variant} className={cn("mb-5 px-5 py-5 sm:px-7 sm:py-6", className)}>
-      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
-        <div className="min-w-0 max-w-2xl flex-1">
-          <h1 className="text-[26px] font-semibold leading-tight tracking-tight sm:text-[28px]">{title}</h1>
-          {subtitle && <p className="mt-1 max-w-xl text-sm text-slate-700">{subtitle}</p>}
-          {stats && <div role="group" aria-label={statsLabel} className="mt-4 flex flex-wrap gap-2.5">{stats}</div>}
+    <BannerSurface variant={variant} motif={false} className={cn("mb-5 px-5 py-4 sm:px-6", className)}>
+      <div className={cn("grid items-center gap-x-6 gap-y-3", stats ? "lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]" : "lg:grid-cols-[minmax(0,1fr)_auto]")}>
+        <div className="min-w-0">
+          <h1 className="text-[24px] font-semibold leading-tight tracking-tight sm:text-[26px]">{title}</h1>
+          {subtitle && <p className="mt-0.5 max-w-xl text-[13.5px] text-slate-700">{subtitle}</p>}
         </div>
-        {(actions || aside) && <div className="flex flex-col items-end gap-3">{actions && <div className="flex flex-wrap items-center justify-end gap-2">{actions}</div>}{aside}</div>}
+        {stats && <div role="group" aria-label={statsLabel} className="flex flex-wrap gap-2 lg:justify-center">{stats}</div>}
+        <div className="flex items-center gap-3 lg:justify-end">
+          <Motif variant={variant} className="pointer-events-none hidden h-14 w-24 shrink-0 opacity-70 2xl:block" />
+          {(actions || aside) && <div className="relative z-10 flex flex-wrap items-center gap-2 lg:flex-nowrap lg:justify-end">{actions}{aside}</div>}
+        </div>
       </div>
     </BannerSurface>
   );
