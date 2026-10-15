@@ -1,6 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
@@ -18,6 +19,7 @@ import { manageLookupSchema, type ManageLookup } from "./schemas";
  * which is not enough for a real service. Only the appointment's date, time, service, provider and place are shown.
  */
 export function ManageBooking({ initialReference = "" }: { initialReference?: string }) {
+  const embed = useSearchParams().get("embed") === "1";
   const { data: refs } = useRefs();
   const qc = useQueryClient();
   const f = useForm<ManageLookup>({ resolver: zodResolver(manageLookupSchema), defaultValues: { reference: initialReference, email: "" } });
@@ -49,7 +51,7 @@ export function ManageBooking({ initialReference = "" }: { initialReference?: st
           <Field label="Booking reference" required error={errors.reference?.message}><Input autoComplete="off" {...f.register("reference")} /></Field>
           <Field label="Email" required error={errors.email?.message}><Input type="email" autoComplete="email" {...f.register("email")} /></Field>
           {missing && <Alert tone="warn" title="We could not find that booking">Check the reference and email. Only bookings made on this page can be managed here.</Alert>}
-          <div className="flex justify-between"><Link href="/book"><Button type="button" variant="ghost">Book an appointment</Button></Link><Button type="submit" loading={busy}>Find booking</Button></div>
+          <div className="flex justify-between"><Link href={embed ? "/book?embed=1" : "/book"}><Button type="button" variant="ghost">Book an appointment</Button></Link><Button type="submit" loading={busy}>Find booking</Button></div>
         </form></Panel>
       ) : (
         <Panel className="space-y-4 p-5">
@@ -68,7 +70,7 @@ export function ManageBooking({ initialReference = "" }: { initialReference?: st
               </div>
             ) : <div className="flex flex-wrap gap-2"><Button variant="secondary" onClick={() => { setChanging(true); setDate(booking.date); }}>Change time</Button><Button variant="secondary" onClick={() => setConfirm(true)}>Cancel booking</Button></div>
           ) : <p className="text-sm text-muted">This booking can no longer be changed here. Please contact the practice.</p>}
-          <div className="flex justify-between"><Button variant="ghost" onClick={() => { setBooking(null); setMsg(null); setChanging(false); }}>Look up another</Button><Link href="/book"><Button variant="ghost">Book an appointment</Button></Link></div>
+          <div className="flex justify-between"><Button variant="ghost" onClick={() => { setBooking(null); setMsg(null); setChanging(false); }}>Look up another</Button><Link href={embed ? "/book?embed=1" : "/book"}><Button variant="ghost">Book an appointment</Button></Link></div>
         </Panel>)}
       <ConfirmDialog open={confirm} onOpenChange={setConfirm} title="Cancel this booking?" description="Your time will be released." cancelLabel="Keep booking" confirmLabel="Cancel booking" danger loading={busy} onConfirm={cancel} />
     </PublicShell>

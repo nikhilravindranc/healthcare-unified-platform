@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { toast } from "sonner";
 import { CalendarCheck, CalendarClock, CalendarX, ExternalLink } from "lucide-react";
 import { Alert, Badge, Button, Checkbox, EmptyState, Field, Input, PageHeader, Panel, PanelHeader, StatGrid, StatTile, StatusBadge, Td, Th } from "@/components/ui";
 import { useUI } from "@/components/app/ui-state";
@@ -7,6 +8,13 @@ import { fmtDate, fmtTime, TODAY } from "@/lib/db";
 import { useAppointments, usePatients, useRefs, useRole } from "@/lib/hooks";
 import { saveSettings, useSettings } from "@/lib/settings";
 import { providersForService } from "./availability";
+
+const EMBED = `<iframe id="evoq-booking" src="https://your-site.example/book?embed=1" title="Book an appointment" style="width:100%;min-height:640px;border:0" loading="lazy"></iframe>
+<script>
+  window.addEventListener("message", function (e) {
+    if (e.data && e.data.type === "evoq-booking-height") document.getElementById("evoq-booking").style.height = e.data.height + "px";
+  });
+</script>`;
 
 /** Practice-side view of online booking: what is offered, and the bookings people made. Internal appointment work stays in Practice Management. */
 export function BookingAdmin() {
@@ -66,6 +74,12 @@ export function BookingAdmin() {
               </div>
               <p className="text-xs text-muted">Offered times follow these rules from Practice: working hours, each provider&apos;s days, hours and time off, the buffer between visits, the practice break and closed dates. Change them in Practice &gt; Team, and in Settings &gt; Appointments. Durations come from Services.</p>
             </div>
+          </Panel>
+          <Panel className="p-4">
+            <h2 className="text-sm font-semibold">Add to your website</h2>
+            <p className="mt-1 text-[13px] text-slate-600">Paste this where the booking form should appear. It shows the same demo journey without the page header, and resizes to fit. Replace the address with your own once the page is hosted.</p>
+            <pre className="scroll-thin mt-2 overflow-x-auto rounded-lg bg-cloud p-3 text-xs leading-relaxed" aria-label="Embed code"><code>{EMBED}</code></pre>
+            <div className="mt-2 flex gap-2"><Button size="sm" variant="secondary" onClick={() => { navigator.clipboard?.writeText(EMBED); toast.success("Embed code copied"); }}>Copy code</Button><Link href="/book?embed=1" target="_blank"><Button size="sm" variant="ghost"><ExternalLink className="size-4" aria-hidden />Preview embedded view</Button></Link></div>
           </Panel>
           <Panel className="p-4">
             <h2 className="text-sm font-semibold">Needs a backend before it is real</h2>

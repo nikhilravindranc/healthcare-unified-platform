@@ -1,6 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
@@ -63,6 +64,7 @@ function SummaryRow({ icon: Icon, label, value, sub }: { icon: LucideIcon; label
 }
 
 export function PublicBooking() {
+  const embed = useSearchParams().get("embed") === "1";
   const { data: refs } = useRefs();
   const st = useSettings();
   const available = useBookingAvailable();
@@ -142,7 +144,7 @@ export function PublicBooking() {
         </dl>
         <div className="space-y-4 border-t border-line bg-cloud/40 p-6">
           <Alert tone="warn" title="Demo only">No confirmation email or text message was sent.</Alert>
-          <div className="flex flex-wrap gap-2"><Link href={`/book/manage?ref=${done.reference}`} className="flex-1"><Button variant="secondary" className="w-full">Manage this booking</Button></Link><Button className="flex-1" onClick={reset}>Book another</Button></div>
+          <div className="flex flex-wrap gap-2"><Link href={`/book/manage?ref=${done.reference}${embed ? "&embed=1" : ""}`} className="flex-1"><Button variant="secondary" className="w-full">Manage this booking</Button></Link><Button className="flex-1" onClick={reset}>Book another</Button></div>
         </div>
       </Panel>
     </PublicShell>

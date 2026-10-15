@@ -1,5 +1,7 @@
 "use client";
+import { useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { CalendarClock, Phone, ShieldCheck } from "lucide-react";
 import { Button, Logo } from "@/components/ui";
 import { fmtTime } from "@/lib/db";
@@ -10,6 +12,29 @@ import { moduleEnabled } from "@/platform/modules";
 /** The public (patient-facing) frame for online booking. It has no staff navigation and shows no internal data. */
 export function PublicShell({ children, title, subtitle, narrow }: { children: React.ReactNode; title?: string; subtitle?: string; narrow?: boolean }) {
   const st = useSettings();
+  const embed = useSearchParams().get("embed") === "1";
+  const q = embed ? "?embed=1" : "";
+  // Embedded in another site: tell the parent page how tall the content is so it can resize the frame.
+  useEffect(() => {
+    if (!embed || window.parent === window) return;
+    const send = () => window.parent.postMessage({ type: "evoq-booking-height", height: document.documentElement.scrollHeight }, "*");
+    send();
+    const ro = new ResizeObserver(send);
+    ro.observe(document.body);
+    return () => ro.disconnect();
+  }, [embed]);
+  if (embed) return (
+    <div className="min-h-screen bg-white px-3 pb-6 pt-4 sm:px-5">
+      <div className={cn("mx-auto", narrow ? "max-w-xl" : "max-w-6xl")}>
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
+          <div>{title && <h1 className="text-xl font-semibold tracking-tight">{title}</h1>}{subtitle && <p className="mt-1 max-w-2xl text-sm text-slate-600">{subtitle}</p>}</div>
+          <Link href={`/book/manage${q}`}><Button size="sm" variant="secondary"><CalendarClock className="size-4" aria-hidden />Manage booking</Button></Link>
+        </div>
+        <p className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-[#cfe3f5] bg-active px-2.5 py-1 text-xs font-medium text-primary"><ShieldCheck className="size-3.5" aria-hidden />Demo booking. Sample availability, no confirmation is sent.</p>
+        {children}
+      </div>
+    </div>
+  );
   return (
     <div className="flex min-h-screen flex-col bg-[#F5F8FB]">
       <header className="sticky top-0 z-30 border-b border-line bg-white/90 backdrop-blur">
