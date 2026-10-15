@@ -1,4 +1,5 @@
 "use client";
+import { BrandLogo } from "@/components/ui/brand-logo";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -149,8 +150,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Sidebar */}
       <aside className={cn("fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-line bg-white md:flex", collapsed ? "w-[68px]" : "w-[232px]")}>
         <div className={cn("flex h-16 items-center border-b border-line px-3", collapsed ? "justify-center" : "justify-start px-4")}>
-          <span className={collapsed ? "" : "hidden"}><Logo variant="icon" height={34} /></span>
-          <span className={cn("flex-col leading-none", collapsed ? "hidden" : "flex")}><Logo height={24} /><span className="mt-1 text-[11px] font-medium text-muted">Practice Management</span></span>
+          <span className={collapsed ? "" : "hidden"}><BrandLogo variant="icon" height={34} /></span>
+          <span className={cn("flex-col leading-none", collapsed ? "hidden" : "flex")}><BrandLogo height={24} /><span className="mt-1 text-[11px] font-medium text-muted">Practice Management</span></span>
         </div>
         <button onClick={toggle} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!collapsed}
           className="absolute -right-3 top-[52px] z-40 grid size-6 place-items-center rounded-full border border-line bg-white text-muted shadow-sm hover:bg-cloud hover:text-primary">
@@ -180,7 +181,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className={cn("min-h-screen", collapsed ? "md:pl-[68px]" : "md:pl-[232px]")} style={{ background: "linear-gradient(160deg, var(--canvas-1) 0%, var(--canvas-2) 48%, var(--canvas-3) 100%) fixed" }}>
         {/* Top bar */}
         <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-line/70 glass px-4 lg:px-8">
-          <div className="md:hidden"><Logo variant="icon" height={32} /></div>
+          <div className="md:hidden"><BrandLogo variant="icon" height={32} /></div>
           <button onClick={() => setSearchOpen(true)} className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-lg border border-line bg-cloud/60 px-3 text-left text-sm text-muted hover:bg-cloud md:max-w-sm" aria-label="Search">
             <Search className="size-4 shrink-0" aria-hidden /><span className="truncate">Search patients, appointments...</span>
             <kbd className="ml-auto hidden rounded border border-line bg-white px-1.5 text-[11px] lg:block">Ctrl K</kbd>

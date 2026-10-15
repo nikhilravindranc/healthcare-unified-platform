@@ -1,6 +1,7 @@
 "use client";
 import { useSyncExternalStore } from "react";
 import { CLINIC_TYPES, type ClinicType } from "./clinical";
+import type { CustomTheme } from "./themes";
 
 export interface Settings {
   clinicName: string; clinicType: ClinicType; currency: string; timezone: string; country: string; phone: string;
@@ -12,7 +13,7 @@ export interface Settings {
   /** Practice break and closed dates (empty = none). Applied to every appointment, internal and online. */
   breakStart: string; breakEnd: string; closedDates: string;
   /** Online booking: whether the public page is on, which services it offers (null = every active service), the notice needed, and how far ahead people can book (0 = no limit). */
-  booking: { enabled: boolean; serviceIds: string[] | null; leadHours: number; windowDays: number }; modules: Record<string, boolean>; agents: Record<string, boolean>; theme: string; sessionMinutes: number; mfa: boolean; setupPending: string[];
+  booking: { enabled: boolean; serviceIds: string[] | null; leadHours: number; windowDays: number }; modules: Record<string, boolean>; agents: Record<string, boolean>; theme: string; custom: CustomTheme | null; sessionMinutes: number; mfa: boolean; setupPending: string[];
 }
 export const DEFAULTS: Settings = {
   clinicName: "Brightwell Clinic", clinicType: "Medical aesthetics", currency: "USD", timezone: "America/Los_Angeles", country: "United States", phone: "(415) 555-0142",
@@ -24,7 +25,7 @@ export const DEFAULTS: Settings = {
   breakStart: "", breakEnd: "", closedDates: "",
   booking: { enabled: true, serviceIds: null, leadHours: 2, windowDays: 60 },
   modules: { crm: true, booking: true, campaigns: true },
-  agents: { prep: true, followup: true, appointment: true, recall: true, noshow: true, insights: true, engagement: false, scribe: false, receptionist: false }, theme: "evoq", sessionMinutes: 30, mfa: true, setupPending: [],
+  agents: { prep: true, followup: true, appointment: true, recall: true, noshow: true, insights: true, engagement: false, scribe: false, receptionist: false }, theme: "evoq", custom: null, sessionMinutes: 30, mfa: true, setupPending: [],
 };
 const KEY = "pms.settings";
 let cache: { raw: string | null; val: Settings } = { raw: "__", val: DEFAULTS };

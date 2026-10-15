@@ -7,8 +7,8 @@ import { applyTheme } from "@/lib/themes";
 
 /** Applies the chosen colour theme to the whole page. */
 function ThemeApplier() {
-  const { theme } = useSettings();
-  useEffect(() => { applyTheme(theme); }, [theme]);
+  const { theme, custom } = useSettings();
+  useEffect(() => { applyTheme(theme, custom); }, [theme, custom]);
   return null;
 }
 

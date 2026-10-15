@@ -30,7 +30,7 @@ export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & { vari
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function Button({ variant = "primary", size = "md", loading, className, children, disabled, ...p }, ref) {
   return (
     <button ref={ref} disabled={disabled || loading} {...p}
-      className={cn("inline-flex items-center justify-center gap-1.5 rounded-xl font-medium whitespace-nowrap transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed",
+      className={cn("inline-flex items-center justify-center gap-1.5 rounded-[var(--btn-radius,0.75rem)] font-medium whitespace-nowrap transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed",
         size === "sm" ? "h-8 px-3 text-[13px]" : "h-10 px-4 text-sm", btn[variant], className)}>
       {loading && <Loader2 className="size-4 animate-spin" aria-hidden />}
       {children}

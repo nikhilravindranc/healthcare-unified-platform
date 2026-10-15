@@ -1,4 +1,5 @@
 "use client";
+import { BrandLogo } from "@/components/ui/brand-logo";
 import { useEffect } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -41,7 +42,7 @@ export function PublicShell({ children, title, subtitle, narrow }: { children: R
       <header className="sticky top-0 z-30 border-b border-line bg-white/90 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
           <Link href="/book" className="flex min-w-0 items-center gap-3" aria-label={`${st.clinicName}, book an appointment`}>
-            <Logo height={26} />
+            <BrandLogo height={26} />
             <span className="hidden h-6 w-px bg-line sm:block" aria-hidden />
             <span className="hidden truncate text-sm font-medium text-slate-600 sm:block">{st.clinicName}</span>
           </Link>

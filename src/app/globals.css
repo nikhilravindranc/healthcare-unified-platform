@@ -80,3 +80,16 @@ button:not(:disabled):active { transform: scale(0.985); }
 
 .scroll-thin::-webkit-scrollbar { width: 8px; height: 8px; }
 .scroll-thin::-webkit-scrollbar-thumb { background: #d5dbe1; border-radius: 8px; }
+
+/* Custom theme choices. These only apply when a practice has switched on its own theme. */
+html[data-font="system"] body { font-family: system-ui, "Segoe UI", Roboto, "Helvetica Neue", sans-serif; }
+html[data-font="humanist"] body { font-family: "Segoe UI", "Trebuchet MS", Optima, Candara, "Gill Sans", sans-serif; }
+html[data-font="serif"] h1, html[data-font="serif"] h2, html[data-font="serif"] h3 { font-family: Georgia, "Times New Roman", serif; letter-spacing: -0.01em; }
+html[data-size="compact"] { font-size: 93.75%; }
+html[data-size="comfortable"] { font-size: 106.25%; }
+html[data-corners="sharp"] { --radius-lg: .25rem; --radius-xl: .375rem; --radius-2xl: .5rem; --radius-3xl: .625rem; }
+html[data-corners="round"] { --radius-lg: .75rem; --radius-xl: 1rem; --radius-2xl: 1.5rem; --radius-3xl: 2rem; }
+html[data-buttons="square"] { --btn-radius: .375rem; }
+html[data-buttons="pill"] { --btn-radius: 9999px; }
+html[data-icons="light"] svg.lucide { stroke-width: 1.5; }
+html[data-icons="bold"] svg.lucide { stroke-width: 2.3; }

@@ -1,3 +1,5 @@
+import { mix, readableOnWhite } from "./palette";
+
 /** Colour themes. Each one only changes colour variables, never layout, wording or behaviour. */
 export interface Theme {
   id: string;
@@ -37,14 +39,47 @@ export const THEMES: Theme[] = [
 ];
 
 export const DEFAULT_THEME = "evoq";
-export const getTheme = (id?: string) => THEMES.find((t) => t.id === id) ?? THEMES[0];
-const KEYS = Array.from(new Set(THEMES.flatMap((t) => Object.keys(t.vars))));
 
-/** Applies a theme to the page by setting its colour variables. The default clears them. */
-export function applyTheme(id?: string) {
+/** A practice's own theme: three brand colours plus type, shape and icon choices. */
+export interface CustomTheme {
+  name: string;
+  /** The practice logo, shrunk and stored as a data address. */
+  logo?: string;
+  primary: string; accent: string; secondary: string;
+  font: "inter" | "system" | "humanist" | "serif";
+  size: "compact" | "default" | "comfortable";
+  corners: "sharp" | "soft" | "round";
+  buttons: "square" | "rounded" | "pill";
+  icons: "light" | "regular" | "bold";
+}
+export const DEFAULT_CUSTOM: CustomTheme = { name: "My brand", primary: "#2867b2", accent: "#26b9cf", secondary: "#7acfc5", font: "inter", size: "default", corners: "soft", buttons: "rounded", icons: "regular" };
+
+/** Builds every colour variable from the three brand colours. Primary is darkened if white text on it would be hard to read. */
+export function customColors(c: CustomTheme): Record<string, string> {
+  const p = readableOnWhite(c.primary), W = "#ffffff";
+  return make({
+    primary: p, hover: mix(p, "#000000", 0.18), active: mix(p, W, 0.9), cyan: c.accent, mint: mix(c.secondary, W, 0.3), lavender: mix(c.secondary, W, 0.78), peach: "#FFDFAE",
+    t: [mix(p, W, 0.88), mix(c.accent, W, 0.86), mix(c.secondary, W, 0.84), mix(mix(c.accent, "#FFF3DC", 0.5), W, 0.6)],
+    canvas: [mix(p, W, 0.965), mix(c.accent, W, 0.95), mix(c.secondary, W, 0.95)],
+  });
+}
+
+export const getTheme = (id?: string) => THEMES.find((t) => t.id === id) ?? THEMES[0];
+const KEYS = Array.from(new Set([...THEMES.flatMap((t) => Object.keys(t.vars)), ...Object.keys(customColors(DEFAULT_CUSTOM))]));
+const ATTRS = ["font", "size", "corners", "buttons", "icons"] as const;
+
+/** Applies a theme to the page by setting its colour variables. The default clears them. A custom theme also sets type, shape and icon choices. */
+export function applyTheme(id?: string, custom?: CustomTheme | null) {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
   KEYS.forEach((k) => root.style.removeProperty(k));
+  ATTRS.forEach((a) => root.removeAttribute(`data-${a}`));
+  if (id === "custom" && custom) {
+    Object.entries(customColors(custom)).forEach(([k, v]) => root.style.setProperty(k, v));
+    ATTRS.forEach((a) => root.setAttribute(`data-${a}`, custom[a]));
+    root.dataset.theme = "custom";
+    return;
+  }
   const t = getTheme(id);
   Object.entries(t.vars).forEach(([k, v]) => root.style.setProperty(k, v));
   root.dataset.theme = t.id;
