@@ -13,6 +13,9 @@
   --line: #e2e7eb;
   --active: #eaf3fb;
   --selected: #e5f8fb;
+  --shadow-card: 0 1px 2px rgba(38, 56, 75, 0.04), 0 4px 16px rgba(38, 56, 75, 0.05);
+  --shadow-lift: 0 2px 4px rgba(38, 56, 75, 0.05), 0 12px 28px rgba(38, 56, 75, 0.10);
+  --shadow-btn: 0 1px 2px rgba(40, 103, 178, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
 @theme inline {
@@ -49,6 +52,10 @@ body {
 }
 input:focus-visible, textarea:focus-visible, select:focus-visible { outline: none; }
 
+.shadow-card { box-shadow: var(--shadow-card); }
+.shadow-lift { box-shadow: var(--shadow-lift); }
+.glass { background: rgba(255, 255, 255, 0.82); backdrop-filter: blur(14px) saturate(1.4); }
+button:not(:disabled):active { transform: scale(0.985); }
 .brand-gradient { background: linear-gradient(120deg, #2867b2 0%, #26b9cf 55%, #7acfc5 100%); }
 .soft-gradient { background: linear-gradient(120deg, #dcddf5 0%, #bfeaf0 55%, #7acfc5 100%); }
 

@@ -2,7 +2,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { Dialog as RDialog, DropdownMenu as RMenu, Tabs as RTabs } from "radix-ui";
-import { Check, Loader2, X, AlertCircle, CheckCircle2, Info, TriangleAlert, type LucideIcon } from "lucide-react";
+import { Check, Loader2, Sparkles, X, AlertCircle, CheckCircle2, Info, TriangleAlert, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ApptStatus } from "@/lib/types";
 
@@ -20,8 +20,8 @@ export function Logo({ variant = "full", height = 28, className }: { variant?: "
 
 /* ---------------- Button ---------------- */
 const btn = {
-  primary: "bg-primary text-white hover:bg-primary-hover",
-  secondary: "bg-white text-primary border border-[#C9DAEE] hover:bg-cloud",
+  primary: "bg-primary text-white shadow-[var(--shadow-btn)] hover:bg-primary-hover",
+  secondary: "bg-white text-primary border border-[#C9DAEE] shadow-[0_1px_2px_rgba(38,56,75,0.04)] hover:bg-active",
   ghost: "text-ink hover:bg-cloud",
   danger: "bg-danger text-white hover:bg-[#9a3433]",
   soft: "bg-active text-primary hover:bg-[#dcebf8]",
@@ -30,7 +30,7 @@ export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & { vari
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function Button({ variant = "primary", size = "md", loading, className, children, disabled, ...p }, ref) {
   return (
     <button ref={ref} disabled={disabled || loading} {...p}
-      className={cn("inline-flex items-center justify-center gap-1.5 rounded-lg font-medium whitespace-nowrap transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
+      className={cn("inline-flex items-center justify-center gap-1.5 rounded-xl font-medium whitespace-nowrap transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed",
         size === "sm" ? "h-8 px-3 text-[13px]" : "h-10 px-4 text-sm", btn[variant], className)}>
       {loading && <Loader2 className="size-4 animate-spin" aria-hidden />}
       {children}
@@ -39,7 +39,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function 
 });
 
 /* ---------------- Form controls ---------------- */
-const control = "w-full rounded-lg border bg-white px-3 text-sm text-ink placeholder:text-slate-400 transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-cloud";
+const control = "w-full rounded-xl border bg-white px-3.5 text-sm text-ink placeholder:text-slate-400 transition-all hover:border-slate-300 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/15 disabled:bg-cloud";
 export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement> & { invalid?: boolean }>(function Input({ className, invalid, ...p }, ref) {
   return <input ref={ref} aria-invalid={invalid || undefined} className={cn(control, "h-10", invalid ? "border-danger" : "border-line", className)} {...p} />;
 });
@@ -78,7 +78,7 @@ export function Checkbox({ checked, onChange, label, id }: { checked: boolean; o
 /* ---------------- Badges & status ---------------- */
 export function Badge({ children, tone = "neutral", className }: { children: React.ReactNode; tone?: "neutral" | "blue" | "cyan" | "mint" | "peach" | "lavender" | "red"; className?: string }) {
   const t = { neutral: "bg-cloud text-slate-600", blue: "bg-[#E6F0FA] text-[#1E4F8C]", cyan: "bg-[#DDF4F8] text-[#0E6577]", mint: "bg-[#DDF3EF] text-[#1E6B61]", peach: "bg-[#FFF1D6] text-[#7A4B00]", lavender: "bg-[#ECECF9] text-[#40428A]", red: "bg-[#FBE9E9] text-[#8F2D2D]" }[tone];
-  return <span className={cn("inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium", t, className)}>{children}</span>;
+  return <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium", t, className)}>{children}</span>;
 }
 export const STATUS: Record<ApptStatus, { label: string; tone: Parameters<typeof Badge>[0]["tone"]; dot: string; shape: "ring" | "dot" | "half" | "check" | "x" | "dash" }> = {
   scheduled: { label: "Scheduled", tone: "neutral", dot: "#94A3B8", shape: "ring" },
@@ -120,7 +120,8 @@ export function SkeletonRows({ rows = 6 }: { rows?: number }) {
 export function EmptyState({ title, text, action }: { title: string; text?: string; action?: React.ReactNode }) {
   return (
     <div className="px-6 py-12 text-center">
-      <p className="text-sm font-medium text-ink">{title}</p>
+      <span aria-hidden className="mx-auto mb-3 grid size-12 place-items-center rounded-2xl bg-[linear-gradient(135deg,#ECECF9,#DDF4F8)] text-primary"><Sparkles className="size-5" /></span>
+      <p className="text-sm font-semibold text-ink">{title}</p>
       {text && <p className="mt-1 text-sm text-muted">{text}</p>}
       {action && <div className="mt-4 flex justify-center">{action}</div>}
     </div>
@@ -166,8 +167,8 @@ export function Modal({ open, onOpenChange, title, description, children, footer
   return (
     <RDialog.Root open={open} onOpenChange={onOpenChange}>
       <RDialog.Portal>
-        <RDialog.Overlay className="anim-fade fixed inset-0 z-50 bg-[#26384B]/40" />
-        <RDialog.Content {...rf} style={{ maxWidth: width }} className="anim-pop fixed left-1/2 top-1/2 z-50 w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 rounded-xl bg-white shadow-xl focus:outline-none">
+        <RDialog.Overlay className="anim-fade fixed inset-0 z-50 bg-[#26384B]/40 backdrop-blur-[2px]" />
+        <RDialog.Content {...rf} style={{ maxWidth: width }} className="anim-pop fixed left-1/2 top-1/2 z-50 w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white shadow-lift focus:outline-none">
           <div className="p-5">
             <RDialog.Title className="text-base font-semibold">{title}</RDialog.Title>
             <RDialog.Description asChild><div className="mt-1.5 text-sm text-muted">{description}</div></RDialog.Description>
@@ -190,7 +191,7 @@ export function Sheet({ open, onOpenChange, title, description, children, footer
   return (
     <RDialog.Root open={open} onOpenChange={onOpenChange} modal={modal}>
       <RDialog.Portal>
-        {modal && <RDialog.Overlay className="anim-fade fixed inset-0 z-40 bg-[#26384B]/25" />}
+        {modal && <RDialog.Overlay className="anim-fade fixed inset-0 z-40 bg-[#26384B]/25 backdrop-blur-[2px]" />}
         <RDialog.Content {...rf} style={{ width }} onInteractOutside={(e) => { if (!modal) e.preventDefault(); }}
           className="anim-panel fixed right-0 top-0 z-50 flex h-full max-w-full flex-col border-l border-line bg-white shadow-xl focus:outline-none">
           <div className="flex items-start justify-between gap-3 border-b border-line px-5 py-4">
@@ -214,7 +215,7 @@ export const MenuTrigger = RMenu.Trigger;
 export function MenuContent({ className, align = "end", ...p }: React.ComponentProps<typeof RMenu.Content>) {
   return (
     <RMenu.Portal>
-      <RMenu.Content align={align} sideOffset={6} className={cn("anim-pop z-[60] min-w-48 rounded-lg border border-line bg-white p-1 shadow-lg", className)} {...p} />
+      <RMenu.Content align={align} sideOffset={6} className={cn("anim-pop z-[60] min-w-48 rounded-xl border border-line bg-white p-1.5 shadow-lift", className)} {...p} />
     </RMenu.Portal>
   );
 }
@@ -263,16 +264,16 @@ export function StatTile({ label, value, hint, icon: Icon, tone = "blue", active
       {hint && <span className="mt-2 block text-xs text-muted">{hint}</span>}
     </>
   );
-  const cls = cn("relative block overflow-hidden rounded-xl border bg-white p-4 text-left shadow-[0_1px_2px_rgba(38,56,75,0.04)]", active ? "border-primary ring-2 ring-primary/15" : "border-line");
+  const cls = cn("relative block overflow-hidden rounded-2xl border bg-white p-4 text-left shadow-card", active ? "border-primary ring-2 ring-primary/15" : "border-line");
   return onClick
-    ? <button type="button" aria-pressed={active} onClick={onClick} className={cn(cls, "transition-all hover:-translate-y-px hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40")}>{body}</button>
+    ? <button type="button" aria-pressed={active} onClick={onClick} className={cn(cls, "transition-all hover:-translate-y-0.5 hover:shadow-lift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40")}>{body}</button>
     : <div className={cls}>{body}</div>;
 }
 export function StatGrid({ children, cols = 4 }: { children: React.ReactNode; cols?: 3 | 4 | 5 }) {
   return <div role="group" aria-label="Key figures" className={cn("mb-5 grid grid-cols-2 gap-3", cols === 5 ? "lg:grid-cols-5" : cols === 3 ? "sm:grid-cols-3" : "lg:grid-cols-4")}>{children}</div>;
 }
 export const Panel = ({ className, children, ...p }: React.HTMLAttributes<HTMLElement>) => (
-  <section className={cn("rounded-xl border border-line bg-white", className)} {...p}>{children}</section>
+  <section className={cn("rounded-2xl border border-line bg-white shadow-card", className)} {...p}>{children}</section>
 );
 export function PanelHeader({ title, action, sub }: { title: string; action?: React.ReactNode; sub?: string }) {
   return (

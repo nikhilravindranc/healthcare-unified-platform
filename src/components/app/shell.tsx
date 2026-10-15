@@ -67,7 +67,7 @@ const PRACTICE: NavItem[] = [...PEOPLE, ...FACILITIES, ...ADMIN];
 function NavLink({ item, collapsed, active }: { item: NavItem; collapsed: boolean; active: boolean }) {
   return (
     <Link href={item.href} title={collapsed ? item.label : undefined} aria-current={active ? "page" : undefined}
-      className={cn("flex h-9 items-center gap-2.5 rounded-lg px-2.5 text-[13.5px] font-medium transition-colors", active ? "bg-selected text-primary" : "text-ink hover:bg-cloud", collapsed ? "justify-center" : "justify-start")}>
+      className={cn("relative flex h-9 items-center gap-2.5 rounded-xl px-3text-[13.5px] font-medium transition-colors", active ? "bg-selected text-primary before:absolute before:-left-3 before:top-2 before:h-6 before:w-1 before:rounded-r-full before:bg-primary" : "text-ink hover:bg-cloud", collapsed ? "justify-center" : "justify-start")}>
       <item.icon className={cn("size-[18px] shrink-0", active ? "text-primary" : "text-muted")} strokeWidth={1.8} aria-hidden />
       <span className={collapsed ? "sr-only" : ""}>{item.label}</span>
     </Link>
@@ -179,7 +179,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <div className={cn("min-h-screen bg-cloud", collapsed ? "md:pl-[68px]" : "md:pl-[232px]")}>
         {/* Top bar */}
-        <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-line bg-white/95 px-4 backdrop-blur lg:px-8">
+        <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-line/70 glass px-4 lg:px-8">
           <div className="md:hidden"><Logo variant="icon" height={32} /></div>
           <button onClick={() => setSearchOpen(true)} className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-lg border border-line bg-cloud/60 px-3 text-left text-sm text-muted hover:bg-cloud md:max-w-sm" aria-label="Search">
             <Search className="size-4 shrink-0" aria-hidden /><span className="truncate">Search patients, appointments...</span>
