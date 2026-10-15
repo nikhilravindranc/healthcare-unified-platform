@@ -304,7 +304,7 @@ export function Pagination({ page, pages, onPage, total }: { page: number; pages
     </div>
   );
 }
-export const Th = ({ className, ...p }: React.ThHTMLAttributes<HTMLTableCellElement>) => <th className={cn("px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-muted", className)} {...p} />;
+export const Th = ({ className, ...p }: React.ThHTMLAttributes<HTMLTableCellElement>) => <th className={cn("px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted", className)} {...p} />;
 export const Td = ({ className, ...p }: React.TdHTMLAttributes<HTMLTableCellElement>) => <td className={cn("px-4 py-3 align-middle text-[13px]", className)} {...p} />;
 
 /** A quiet page title for working screens: no gradient, a short description, optional breadcrumb and actions. */

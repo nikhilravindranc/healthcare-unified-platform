@@ -106,7 +106,7 @@ function TimeGrid({ cols, now, showNow, gaps, onOpen, onSlot, view, onDay }: { c
   const height = (H1 - H0) * 60 * PX;
   const gapList = scheduleGaps();
   return (
-    <div className="scroll-thin overflow-auto rounded-xl border border-line bg-white" style={{ maxHeight: "calc(100vh - 290px)", minHeight: 420 }}>
+    <div className="scroll-thin overflow-auto rounded-2xl border border-line bg-white shadow-card" style={{ maxHeight: "calc(100vh - 290px)", minHeight: 420 }}>
       <div className="grid min-w-[760px]" style={{ gridTemplateColumns: `56px repeat(${cols.length}, minmax(150px, 1fr))` }}>
         <div className="sticky top-0 z-10 border-b border-line bg-white" />
         {cols.map((c) => (
@@ -137,7 +137,7 @@ function TimeGrid({ cols, now, showNow, gaps, onOpen, onSlot, view, onDay }: { c
               const inactive = a.status === "cancelled" || a.status === "no_show";
               return (
                 <button key={a.id} onClick={() => onOpen(a.id)} aria-label={`${p?.first} ${p?.last}, ${fmtTime(a.time)}, ${STAGE_LABEL[apptStage(a.status)]}: ${STATUS[a.status].label}`}
-                  className={cn("absolute inset-x-1 overflow-hidden rounded-md border bg-white px-2 py-1 text-left shadow-[0_1px_0_rgba(38,56,75,.04)] transition hover:shadow-md focus-visible:z-10", inactive && "bg-cloud/70 opacity-70", apptStage(a.status) === "booked" && "border-dashed")}
+                  className={cn("absolute inset-x-1 overflow-hidden rounded-lg border bg-white px-2 py-1 text-left shadow-[0_1px_2px_rgba(38,56,75,.06)] transition hover:-translate-y-px hover:shadow-lift focus-visible:z-10", inactive && "bg-cloud/70 opacity-70", apptStage(a.status) === "booked" && "border-dashed")}
                   style={{ top: top + 1, height: h, borderColor: apptStage(a.status) === "booked" ? "#B8C2CC" : "#E2E7EB", borderLeft: `3px solid ${prov?.color ?? "#2867B2"}` }}>
                   <span className="flex items-center gap-1.5">{h >= 40 && view === "day" && <PatientAvatar id={a.patientId} size={18} />}<StatusDot status={a.status} /><span className={cn("truncate text-[12.5px] font-medium", inactive && "line-through")}>{view === "week" ? `${fmtTime(a.time).replace(" ", "")} ` : ""}{p?.first} {p?.last}</span>{inactive && <span className="shrink-0 text-[11px] font-medium text-[#8F2D2D]">{STATUS[a.status].label}</span>}</span>
                   {h >= 40 && <span className="mt-0.5 block truncate text-[11.5px] text-muted">{refs?.services.find((s) => s.id === a.serviceId)?.name}</span>}
@@ -161,7 +161,7 @@ function MonthGrid({ date, appts, onPick }: { date: string; appts: Appointment[]
   const days = Array.from({ length: 42 }, (_, i) => addDays(start, i));
   const month = date.slice(5, 7);
   return (
-    <div className="overflow-hidden rounded-xl border border-line bg-white">
+    <div className="overflow-hidden rounded-2xl border border-line bg-white shadow-card">
       <div className="grid grid-cols-7 border-b border-line bg-cloud/50 text-center text-xs font-medium text-muted">{["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => <div key={d} className="py-2">{d}</div>)}</div>
       <div className="grid grid-cols-7">
         {days.map((d) => {

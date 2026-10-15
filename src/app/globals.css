@@ -52,6 +52,8 @@ body {
 }
 input:focus-visible, textarea:focus-visible, select:focus-visible { outline: none; }
 
+tbody > tr { transition: background-color .12s ease; }
+tbody > tr:hover { background-color: rgba(242, 244, 246, 0.55); }
 .shadow-card { box-shadow: var(--shadow-card); }
 .shadow-lift { box-shadow: var(--shadow-lift); }
 .glass { background: rgba(255, 255, 255, 0.82); backdrop-filter: blur(14px) saturate(1.4); }
