@@ -85,7 +85,7 @@ function Patients() {
       <Panel className="overflow-hidden">
         <div className="flex flex-wrap items-center gap-2 border-b border-line bg-white p-3">
           <div className="relative min-w-56 flex-1 sm:max-w-xs"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden /><Input aria-label="Search patients" className="h-9 pl-9" placeholder="Search by name, ID, phone or email" value={q} onChange={(e) => setQ(e.target.value)} /></div>
-          <Select sm className="w-32" aria-label="Status" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })}><option value="">All statuses</option><option>Active</option><option>New</option><option>Inactive</option></Select>
+          <Select sm className="w-36" aria-label="Status" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })}><option value="">All statuses</option><option>Active</option><option>New</option><option>Inactive</option></Select>
           <Select sm className="w-36" aria-label="Provider" value={f.provider} onChange={(e) => setF({ ...f, provider: e.target.value })}><option value="">All providers</option>{refs?.providers.map((p) => <option key={p.id} value={p.id}>{p.short}</option>)}</Select>
           <Button size="sm" variant={more || extra ? "soft" : "secondary"} aria-expanded={more} onClick={() => setMore((m) => !m)}><SlidersHorizontal className="size-4" />Filters{extra ? ` (${extra})` : ""}</Button>
           {extra > 0 && <Button size="sm" variant="ghost" onClick={() => setF({ ...f, location: "", last: "", next: "", fu: "", tag: "" })}>Clear</Button>}
