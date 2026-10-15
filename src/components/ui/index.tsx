@@ -128,7 +128,7 @@ export function EmptyState({ title, text, action, icon: Icon = Inbox }: { title:
   );
 }
 export function Alert({ tone = "info", title, children, action }: { tone?: "info" | "warn" | "error" | "success"; title?: string; children?: React.ReactNode; action?: React.ReactNode }) {
-  const m = { info: ["bg-active border-[#cfe3f5]", Info, "text-primary"], warn: ["bg-[#FFF8E8] border-[#F4DDAA]", TriangleAlert, "text-[#9A6200]"], error: ["bg-[#FDF0F0] border-[#F0CFCF]", AlertCircle, "text-danger"], success: ["bg-[#EAF7F4] border-[#C5E8E1]", CheckCircle2, "text-[#2A8577]"] }[tone] as [string, typeof Info, string];
+  const m = { info: ["bg-active border-[#cfe3f5]", Info, "text-primary"], warn: ["bg-[#FFF8E8] border-[#F4DDAA]", TriangleAlert, "text-[#9A6200]"], error: ["bg-[#F7CFCE] border-[#EBAAA9]", AlertCircle, "text-danger"], success: ["bg-[#EAF7F4] border-[#C5E8E1]", CheckCircle2, "text-[#2A8577]"] }[tone] as [string, typeof Info, string];
   const Icon = m[1];
   return (
     <div role={tone === "error" ? "alert" : "status"} className={cn("flex gap-2.5 rounded-lg border px-3 py-2.5 text-[13px]", m[0])}>
@@ -242,29 +242,29 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
 
 /* ---------------- Stat tiles ---------------- */
 const TILE_TONE = {
-  blue: ["bg-primary", "bg-active text-primary"],
-  mint: ["bg-mint", "bg-[#DDF3EF] text-[#1E6B61]"],
-  peach: ["bg-peach", "bg-[#FFF1D6] text-[#7A4B00]"],
-  lavender: ["bg-lavender", "bg-[#ECECF9] text-[#40428A]"],
-  cyan: ["bg-cyan", "bg-[#DDF4F8] text-[#0E6577]"],
-  red: ["bg-[#E7A9A8]", "bg-[#FBE9E9] text-[#8F2D2D]"],
-  slate: ["bg-line", "bg-cloud text-slate-500"],
+  blue: ["bg-primary", "bg-white/80 text-primary", "bg-[#CBE0F6] border-[#A9C9EC]"],
+  mint: ["bg-mint", "bg-white/80 text-[#1E6B61]", "bg-[#B9E8E1] border-[#8FD6CC]"],
+  peach: ["bg-peach", "bg-white/80 text-[#7A4B00]", "bg-[#FFDFAE] border-[#F2C77F]"],
+  lavender: ["bg-lavender", "bg-white/80 text-[#40428A]", "bg-[#DCDDF5] border-[#C2C4EA]"],
+  cyan: ["bg-cyan", "bg-white/80 text-[#0E6577]", "bg-[#B5E7EF] border-[#85D3E0]"],
+  red: ["bg-[#E7A9A8]", "bg-white/80 text-[#8F2D2D]", "bg-[#F7CFCE] border-[#EBAAA9]"],
+  slate: ["bg-line", "bg-white/80 text-slate-600", "bg-[#E2E7EB] border-[#CBD3DA]"],
 } as const;
 export type TileTone = keyof typeof TILE_TONE;
 /** A headline number with a colour bar, an icon and one helpful line. With `onClick` it acts as a filter button. */
 export function StatTile({ label, value, hint, icon: Icon, tone = "blue", active, onClick }: { label: string; value: React.ReactNode; hint?: string; icon: LucideIcon; tone?: TileTone; active?: boolean; onClick?: () => void }) {
-  const [bar, chip] = TILE_TONE[tone];
+  const [bar, chip, fill] = TILE_TONE[tone];
   const body = (
     <>
       <span aria-hidden className={cn("absolute inset-x-0 top-0 h-1", bar)} />
       <span className="flex items-start justify-between gap-2">
-        <span className="min-w-0"><span className="block text-[13px] font-medium text-muted">{label}</span><span className="mt-1 block truncate text-[28px] font-semibold leading-none tracking-tight tabular-nums">{value}</span></span>
-        <span className={cn("grid size-10 shrink-0 place-items-center rounded-xl", chip)}><Icon className="size-5" aria-hidden /></span>
+        <span className="min-w-0"><span className="block text-[13px] font-medium text-[#26384B]">{label}</span><span className="mt-1 block truncate text-[28px] font-semibold leading-none tracking-tight tabular-nums">{value}</span></span>
+        <span className={cn("grid size-10 shrink-0 place-items-center rounded-xl shadow-sm", chip)}><Icon className="size-5" aria-hidden /></span>
       </span>
-      {hint && <span className="mt-2 block text-xs text-muted">{hint}</span>}
+      {hint && <span className="mt-2 block text-xs text-[#33475B]">{hint}</span>}
     </>
   );
-  const cls = cn("relative block overflow-hidden rounded-2xl border bg-white p-4 text-left shadow-card", active ? "border-primary ring-2 ring-primary/15" : "border-line");
+  const cls = cn("relative block overflow-hidden rounded-2xl border p-4 text-left shadow-card", fill, active && "border-primary ring-2 ring-primary/25");
   return onClick
     ? <button type="button" aria-pressed={active} onClick={onClick} className={cn(cls, "transition-all hover:-translate-y-0.5 hover:shadow-lift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40")}>{body}</button>
     : <div className={cls}>{body}</div>;
