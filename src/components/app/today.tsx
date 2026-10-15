@@ -135,7 +135,7 @@ function Today({ initialTab }: { initialTab?: TodayTab }) {
     { l: "Book appointment", i: CalendarPlus, tint: "bg-[#E5F8FB] text-[#0E6577]", run: () => ui.newAppt() },
     { l: "Start visit", i: PlayCircle, tint: "bg-[#ECECF9] text-[#40428A]", run: () => ui.newVisit() },
   ];
-  const quickCls = "group flex items-center gap-2.5 rounded-lg border border-line bg-white p-2 pr-3 text-left text-[13px] font-medium transition-colors hover:border-primary/40 hover:bg-cloud focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
+  const quickCls = "group flex items-center gap-2.5 rounded-xl border border-line bg-white p-2.5 pr-3 text-left text-[13px] font-medium shadow-card transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
 
   return (
     <div className="relative">
@@ -155,7 +155,7 @@ function Today({ initialTab }: { initialTab?: TodayTab }) {
               const on = tab === "today" && s.key !== "" && sf === s.key;
               return (
                 <button key={s.label} type="button" aria-pressed={on} onClick={() => pickSummary(s.key)} aria-label={`${s.label}: ${isLoading ? "loading" : s.n}. ${s.key ? `Show only ${SF_LABEL[s.key as SFKey].toLowerCase()} in the schedule` : "Show the full day"}`}
-                  className={cn("flex items-center gap-2.5 rounded-lg border bg-white/90 px-3 py-2 text-left shadow-sm transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40", on ? "border-primary ring-1 ring-primary/20" : "border-white")}>
+                  className={cn("flex items-center gap-2.5 rounded-xl border bg-white/90 px-3.5 py-2.5 text-left shadow-card transition-all hover:-translate-y-0.5 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40", on ? "border-primary ring-1 ring-primary/20" : "border-white")}>
                   <span className={cn("grid size-8 place-items-center rounded-lg", s.chip)}><s.icon className="size-4" aria-hidden /></span>
                   <span><span className="block text-lg font-semibold leading-none tabular-nums">{isLoading ? "–" : s.n}</span><span className="mt-0.5 block text-[11px] text-muted">{s.label}</span></span>
                 </button>);
@@ -207,7 +207,7 @@ function Today({ initialTab }: { initialTab?: TodayTab }) {
               <span>Time</span><span>Patient</span><span>Service / reason</span><span>Provider</span><span>Room</span><span>Status</span><span>Action</span><span />
             </div>
             {isLoading ? <SkeletonRows rows={8} /> : shown.length === 0 ? (
-              <EmptyState title="No appointments" text={sf ? "Nobody matches this status right now." : date === TODAY && !f.provider ? "Your schedule is clear." : "Nothing matches this date or filter."} action={<Button onClick={() => ui.newAppt({ date })}>New appointment</Button>} />
+              <EmptyState icon={CalendarCheck} title="No appointments" text={sf ? "Nobody matches this status right now." : date === TODAY && !f.provider ? "Your schedule is clear." : "Nothing matches this date or filter."} action={<Button onClick={() => ui.newAppt({ date })}>New appointment</Button>} />
             ) : (
               groups.map((g) => (
                 <div key={g.key}>
@@ -255,11 +255,11 @@ function Today({ initialTab }: { initialTab?: TodayTab }) {
         <div className="min-w-0 space-y-5">
           <Panel>
             <PanelHeader title={`Needs attention (${attention.length})`} />
-            {attention.length === 0 ? <EmptyState title="Nothing needs attention" text="The agents will flag items here." /> : (
+            {attention.length === 0 ? <EmptyState icon={CheckCircle2} title="Nothing needs attention" text="Items that need a decision will appear here." /> : (
               <ul className="divide-y divide-line">
                 {attention.map((x) => (
                   <li key={x.id} className="flex items-start gap-3 px-4 py-3">
-                    <span className={cn("grid size-9 shrink-0 place-items-center rounded-lg", ATTN[x.tone])}><x.icon className="size-4" aria-hidden /></span>
+                    <span className={cn("grid size-9 shrink-0 place-items-center rounded-xl", ATTN[x.tone])}><x.icon className="size-4" aria-hidden /></span>
                     <div className="min-w-0 flex-1 text-[13px]"><p><span className="text-base font-semibold">{x.n}</span> {x.text}</p>
                       {x.href ? <Link href={x.href} className="text-xs font-medium text-primary hover:underline">{x.sub}</Link> : <p className="text-xs text-muted">{x.sub}</p>}</div>
                     {x.run && <button onClick={x.run} className="text-xs font-medium text-primary hover:underline">{x.action}</button>}
@@ -272,7 +272,7 @@ function Today({ initialTab }: { initialTab?: TodayTab }) {
 
           <Panel>
             <PanelHeader title={`Waiting now (${waiting.length})`} action={<Link href="/front-desk" className="text-[13px] font-medium text-primary hover:underline">View all</Link>} />
-            {isLoading ? <SkeletonRows rows={3} /> : waiting.length === 0 ? <EmptyState title="Nobody is waiting" text="Patients appear here after check-in." /> : (
+            {isLoading ? <SkeletonRows rows={3} /> : waiting.length === 0 ? <EmptyState icon={Hourglass} title="Nobody is waiting" text="Patients appear here after check-in." /> : (
               <ul className="divide-y divide-line">
                 {waiting.map(({ a, mins }) => (
                   <li key={a.id} className="flex items-center gap-3 px-4 py-2.5">

@@ -185,7 +185,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Search className="size-4 shrink-0" aria-hidden /><span className="truncate">Search patients, appointments...</span>
             <kbd className="ml-auto hidden rounded border border-line bg-white px-1.5 text-[11px] lg:block">Ctrl K</kbd>
           </button>
-          <button onClick={() => ui.evi()} className="hidden h-10 items-center gap-2 rounded-lg border border-line px-3 text-sm font-medium text-primary hover:bg-selected xl:flex xl:min-w-64"><Sparkles className="size-4" aria-hidden />Ask EVI about your practice...</button>
+          <button onClick={() => ui.evi()} className="hidden h-10 items-center gap-2 rounded-lg border border-line px-3 text-sm font-medium text-primary hover:bg-selected xl:flex"><Sparkles className="size-4" aria-hidden />Ask EVI</button>
           <button onClick={() => ui.evi()} aria-label="Ask EVI" className="grid size-10 place-items-center rounded-lg border border-line text-primary hover:bg-selected xl:hidden"><Sparkles className="size-4" /></button>
           <div className="ml-auto flex items-center gap-1.5">
             <Menu>

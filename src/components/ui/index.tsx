@@ -2,7 +2,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { Dialog as RDialog, DropdownMenu as RMenu, Tabs as RTabs } from "radix-ui";
-import { Check, Loader2, Sparkles, X, AlertCircle, CheckCircle2, Info, TriangleAlert, type LucideIcon } from "lucide-react";
+import { Check, Inbox, Loader2, X, AlertCircle, CheckCircle2, Info, TriangleAlert, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ApptStatus } from "@/lib/types";
 
@@ -117,10 +117,10 @@ export function SkeletonRows({ rows = 6 }: { rows?: number }) {
     </div>
   );
 }
-export function EmptyState({ title, text, action }: { title: string; text?: string; action?: React.ReactNode }) {
+export function EmptyState({ title, text, action, icon: Icon = Inbox }: { title: string; text?: string; action?: React.ReactNode; icon?: LucideIcon }) {
   return (
-    <div className="px-6 py-12 text-center">
-      <span aria-hidden className="mx-auto mb-3 grid size-12 place-items-center rounded-2xl bg-[linear-gradient(135deg,#ECECF9,#DDF4F8)] text-primary"><Sparkles className="size-5" /></span>
+    <div className="px-6 py-10 text-center">
+      <span aria-hidden className="mx-auto mb-3 grid size-11 place-items-center rounded-xl bg-active text-primary ring-1 ring-primary/10"><Icon className="size-5" strokeWidth={1.8} /></span>
       <p className="text-sm font-semibold text-ink">{title}</p>
       {text && <p className="mt-1 text-sm text-muted">{text}</p>}
       {action && <div className="mt-4 flex justify-center">{action}</div>}
