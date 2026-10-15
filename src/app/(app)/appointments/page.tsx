@@ -2,9 +2,10 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { CalendarDays, CalendarPlus, MoreHorizontal, Search, SlidersHorizontal } from "lucide-react";
+import { AlertTriangle, CalendarDays, Clock, CalendarPlus, MoreHorizontal, Search, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
-import { Button, ConfirmDialog, EmptyState, Input, Menu, MenuContent, MenuItem, MenuSep, MenuTrigger, PageTitle, Pagination, Panel, Segmented, Select, SkeletonRows, StatusBadge, Td, Th } from "@/components/ui";
+import { Banner, BannerStat } from "@/components/ui/banner";
+import { Button, ConfirmDialog, EmptyState, Input, Menu, MenuContent, MenuItem, MenuSep, MenuTrigger, Pagination, Panel, Segmented, Select, SkeletonRows, StatusBadge, Td, Th } from "@/components/ui";
 import { useUI } from "@/components/app/ui-state";
 import { apptActions, apptStates, inQuickView, needsAttention, type QuickView } from "@/lib/appointment-view";
 import { api, fmtDate, fmtTime, nowMin, pname, TODAY } from "@/lib/db";
@@ -73,20 +74,17 @@ function Appointments() {
     if (what === "check-in") { await setStatus.run(a.id, "arrived"); toast.success(`${name} checked in`); }
     if (what === "no-show") { await setStatus.run(a.id, "no_show"); toast.success(`${name} marked as a no-show`); }
   };
-  const chip = (on: boolean, label: string, n: number, set: () => void) => (
-    <button type="button" aria-pressed={on} onClick={set} className={cn("inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40", on ? "border-primary bg-selected text-primary" : "border-line bg-white text-slate-600 hover:bg-cloud")}>
-      {label}<span className="font-semibold tabular-nums">{isLoading ? "–" : n}</span></button>);
 
   return (
     <>
-      <PageTitle title="Appointments" description="Review and manage scheduled visits."
-        actions={<><Link href="/calendar"><Button variant="secondary"><CalendarDays className="size-4" aria-hidden />Open calendar</Button></Link><Button onClick={() => ui.newAppt()}><CalendarPlus className="size-4" aria-hidden />New appointment</Button></>} />
-
-      <div role="group" aria-label="Quick filters" className="mb-3 flex flex-wrap items-center gap-2">
-        {chip(view === "today" && !attention && !awaiting, "Today", counts.today, () => { setView("today"); setAttention(false); setAwaiting(false); })}
-        {chip(awaiting, "Awaiting confirmation", counts.awaiting, () => { setAwaiting((x) => !x); setAttention(false); setView("upcoming"); })}
-        {chip(attention, "Needs attention", counts.attention, () => { setAttention((x) => !x); setAwaiting(false); setView("all"); })}
-      </div>
+      <Banner variant="appointments" title="Appointments" subtitle="Review and manage scheduled visits."
+        actions={<><Link href="/calendar"><Button variant="secondary"><CalendarDays className="size-4" aria-hidden />Open calendar</Button></Link><Button onClick={() => ui.newAppt()}><CalendarPlus className="size-4" aria-hidden />New appointment</Button></>}
+        statsLabel="Quick filters"
+        stats={<>
+          <BannerStat label="Today" value={isLoading ? "–" : counts.today} icon={CalendarDays} tone="blue" active={view === "today" && !attention && !awaiting} onClick={() => { setView("today"); setAttention(false); setAwaiting(false); }} />
+          <BannerStat label="Awaiting confirmation" value={isLoading ? "–" : counts.awaiting} icon={Clock} tone="peach" active={awaiting} onClick={() => { setAwaiting((x) => !x); setAttention(false); setView("upcoming"); }} />
+          <BannerStat label="Needs attention" value={isLoading ? "–" : counts.attention} icon={AlertTriangle} tone="red" active={attention} onClick={() => { setAttention((x) => !x); setAwaiting(false); setView("all"); }} />
+        </>} />
 
       <Panel>
         <div className="flex flex-wrap items-center gap-2 border-b border-line p-3">

@@ -1,8 +1,9 @@
 "use client";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Eye, GitFork, Inbox, KanbanSquare, List, Plus, Search } from "lucide-react";
-import { Badge, Button, EmptyState, Input, PageHeader, Pagination, Panel, Select, SkeletonRows, Td, Th } from "@/components/ui";
+import { CalendarCheck, Eye, GitFork, Inbox, KanbanSquare, List, Plus, Search, Sparkles } from "lucide-react";
+import { Banner, BannerStat } from "@/components/ui/banner";
+import { Badge, Button, EmptyState, Input, Pagination, Panel, Select, SkeletonRows, Td, Th } from "@/components/ui";
 import { RouteGuard } from "@/platform/route-guard";
 import { fmtDate, TODAY } from "@/lib/db";
 import { useRefs } from "@/lib/hooks";
@@ -71,7 +72,13 @@ function Enquiries() {
 
   return (
     <>
-      <PageHeader title="Enquiries" subtitle="People who have asked about your services, from first contact to booked appointment" actions={<>
+      <Banner variant="enquiries" title="Enquiries" subtitle="People who have asked about your services, from first contact to booked appointment"
+        stats={<>
+          <BannerStat label="All enquiries" value={isLoading ? "–" : data?.length ?? 0} icon={Inbox} tone="blue" active={view === "list" && tab === "all"} onClick={() => { setView("list"); setTab("all"); }} />
+          <BannerStat label="New" value={isLoading ? "–" : (data ?? []).filter((e) => e.status === "New").length} icon={Sparkles} tone="lavender" active={view === "list" && tab === "New"} onClick={() => { setView("list"); setTab("New" as Tab); }} />
+          <BannerStat label="Booked" value={isLoading ? "–" : (data ?? []).filter((e) => e.status === "Appointment booked").length} icon={CalendarCheck} tone="mint" active={view === "list" && tab === "Appointment booked"} onClick={() => { setView("list"); setTab("Appointment booked" as Tab); }} />
+        </>}
+        actions={<>
         <div role="radiogroup" aria-label="View" className="inline-flex rounded-lg bg-cloud p-0.5">{([["list", "List", List], ["board", "Board", KanbanSquare], ["flow", "Flow", GitFork]] as const).map(([v, l, I]) => <button key={v} role="radio" aria-checked={view === v} onClick={() => setView(v)} className={cn("inline-flex h-9 items-center gap-1.5 rounded-md px-3 text-[13px] font-medium transition-colors", view === v ? "bg-white text-primary shadow-sm" : "text-muted hover:text-ink")}><I className="size-4" aria-hidden />{l}</button>)}</div>
         {newBtn}</>} />
       {readOnly && <p className="mb-3 flex items-center gap-1.5 rounded-lg border border-line bg-cloud/60 px-3 py-2 text-[13px] text-slate-600"><Eye className="size-4 shrink-0" aria-hidden />View-only access. Contact details are hidden and changes are turned off for your role.</p>}

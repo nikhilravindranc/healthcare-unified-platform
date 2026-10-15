@@ -2,7 +2,8 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Search, Stethoscope, PlayCircle, CalendarCheck, CheckCircle2 } from "lucide-react";
-import { Badge, Button, EmptyState, Input, PageHeader, Panel, Segmented, SkeletonRows, StatGrid, StatTile, Td, Th } from "@/components/ui";
+import { Banner, BannerStat } from "@/components/ui/banner";
+import { Badge, Button, EmptyState, Input, Panel, Segmented, SkeletonRows, Td, Th } from "@/components/ui";
 import { useUI } from "@/components/app/ui-state";
 import { useAppointments, useFollowUps, useRefs, useVisits } from "@/lib/hooks";
 import { fmtDate, fmtTime, pname, TODAY } from "@/lib/db";
@@ -27,15 +28,13 @@ export default function VisitsPage() {
 
   return (
     <>
-      <PageHeader title="Visits" subtitle="Care delivered, and its documentation" actions={<Button onClick={() => ui.newVisit()}><Plus className="size-4" />New visit</Button>} />
-      <StatGrid>
-        {[
+      <Banner variant="visits" title="Visits" subtitle="Care delivered, and its documentation" actions={<Button onClick={() => ui.newVisit()}><Plus className="size-4" />New visit</Button>}
+        stats={<>{[
           { k: "all" as const, label: "All visits", n: all.length, hint: "On record", icon: Stethoscope, tone: "blue" as const },
           { k: "progress" as const, label: "In progress", n: all.filter((r) => r.visit.status === "In progress").length, hint: "Still being documented", icon: PlayCircle, tone: "lavender" as const },
           { k: "today" as const, label: "Today", n: all.filter((r) => r.visit.date === TODAY).length, hint: "Started today", icon: CalendarCheck, tone: "cyan" as const },
           { k: "completed" as const, label: "Completed", n: all.filter((r) => r.visit.status === "Completed").length, hint: "Documentation locked", icon: CheckCircle2, tone: "mint" as const },
-        ].map((x) => <StatTile key={x.k} label={x.label} value={isLoading ? "–" : x.n} hint={x.hint} icon={x.icon} tone={x.tone} active={tab === x.k} onClick={() => setTab(x.k)} />)}
-      </StatGrid>
+        ].map((x) => <BannerStat key={x.k} label={x.label} value={isLoading ? "–" : x.n} title={x.hint} icon={x.icon} tone={x.tone} active={tab === x.k} onClick={() => setTab(x.k)} />)}</>} />
       <Panel>
         <div className="flex flex-wrap items-center gap-3 border-b border-line p-3">
           <div className="max-w-full overflow-x-auto scroll-thin"><Segmented label="Visit filter" value={tab} onChange={setTab} options={[{ value: "all", label: "All" }, { value: "progress", label: "In progress" }, { value: "today", label: "Today" }, { value: "completed", label: "Completed" }, { value: "attention", label: `Needs attention (${attentionN})` }]} /></div>

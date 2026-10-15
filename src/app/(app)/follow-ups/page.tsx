@@ -2,7 +2,8 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Plus, CalendarClock, AlertTriangle, CalendarDays, CheckCircle2 } from "lucide-react";
-import { Badge, Button, EmptyState, PageHeader, Panel, Select, SkeletonRows, StatGrid, StatTile, Td, Th } from "@/components/ui";
+import { Banner, BannerStat } from "@/components/ui/banner";
+import { Badge, Button, EmptyState, Panel, Select, SkeletonRows, Td, Th } from "@/components/ui";
 import { AgentHint, PatientLink } from "@/components/app/bits";
 import { useUI } from "@/components/app/ui-state";
 import { useAction, useFollowUps, useVisits } from "@/lib/hooks";
@@ -31,11 +32,9 @@ export default function FollowUpsPage() {
 
   return (
     <>
-      <PageHeader title="Follow-ups" subtitle="Patients who need to return or be contacted" actions={<Button onClick={() => ui.newFollowUp()}><Plus className="size-4" />New follow-up</Button>} />
-      <StatGrid>
-        {([["today", CalendarClock, "blue", "Needs action today"], ["overdue", AlertTriangle, "red", "Past their due date"], ["upcoming", CalendarDays, "cyan", "Coming up"], ["completed", CheckCircle2, "mint", "Done"]] as const).map(([k, icon, tone, hint]) => (
-          <StatTile key={k} label={TABS.find((t) => t.v === k)!.l} value={isLoading ? "–" : counts[k] ?? 0} hint={hint} icon={icon} tone={tone} active={tab === k} onClick={() => setTab(k)} />))}
-      </StatGrid>
+      <Banner variant="followups" title="Follow-ups" subtitle="Patients who need to return or be contacted" actions={<Button onClick={() => ui.newFollowUp()}><Plus className="size-4" />New follow-up</Button>}
+        stats={<>{([["today", CalendarClock, "blue", "Needs action today"], ["overdue", AlertTriangle, "red", "Past their due date"], ["upcoming", CalendarDays, "cyan", "Coming up"], ["completed", CheckCircle2, "mint", "Done"]] as const).map(([k, icon, tone, hint]) => (
+          <BannerStat key={k} label={TABS.find((t) => t.v === k)!.l} value={isLoading ? "–" : counts[k] ?? 0} title={hint} icon={icon} tone={tone} active={tab === k} onClick={() => setTab(k)} />))}</>} />
       <AgentHint agent={0} text={`Follow-up Agent found ${agentN} patients needing attention.`} action="Review follow-ups" href="/agents?agent=followup" />
       <Panel>
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-3 pt-1">

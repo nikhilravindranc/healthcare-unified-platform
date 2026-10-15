@@ -1,10 +1,12 @@
 "use client";
+import { Avatar } from "@/components/ui";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CalendarPlus, Check, ChevronDown, Link2, Pencil, UserPlus } from "lucide-react";
 import { toast } from "sonner";
+import { BannerSurface } from "@/components/ui/banner";
 import { Alert, Badge, Button, ConfirmDialog, Field, Input, Menu, MenuContent, MenuItem, MenuTrigger, Select, Sheet, Skeleton, StatusBadge } from "@/components/ui";
 import { useUI } from "@/components/app/ui-state";
 import { useSession } from "@/lib/auth";
@@ -148,9 +150,9 @@ export function EnquiryDetailSheet({ enquiry, needPatient: askPatient, onClose, 
   );
   if (page) {
     return (
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto max-w-4xl">
         <Link href="/enquiries" className="text-[13px] text-primary hover:underline">← All enquiries</Link>
-        <div className="mb-4 mt-1"><h1 className="text-[24px] font-semibold tracking-tight">{e?.name ?? "Enquiry"}</h1>{e && <p className="text-[13px] text-muted">{e.id} · received {fmtDate(e.received, true)}</p>}</div>
+        <BannerSurface variant="enquiry" className="mb-4 mt-2 px-5 py-5 sm:px-6"><div className="flex flex-wrap items-center gap-4"><Avatar name={e?.name ?? "Enquiry"} size={56} tint="rgba(255,255,255,0.85)" /><div className="min-w-0"><h1 className="text-[24px] font-semibold leading-tight tracking-tight">{e?.name ?? "Enquiry"}</h1>{e && <p className="mt-0.5 text-[13px] text-slate-700">{e.id} · received {fmtDate(e.received, true)}</p>}</div>{e && <Badge tone="lavender" className="ml-auto bg-white/80">{e.status}</Badge>}</div></BannerSurface>
         <div className="rounded-xl border border-line bg-white p-5">{content}</div>
         {footer && <div className="mt-4 rounded-xl border border-line bg-white p-3">{footer}</div>}
       </div>

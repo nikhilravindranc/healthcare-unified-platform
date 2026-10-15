@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { AlertTriangle, ArrowLeft, Check, ChevronDown, MoreHorizontal, Sparkles, X } from "lucide-react";
+import { BannerSurface } from "@/components/ui/banner";
 import { Badge, Button, ConfirmDialog, EmptyState, Field, Input, Menu, MenuContent, MenuItem, MenuTrigger, Modal, Skeleton } from "@/components/ui";
 import { PatientAvatar } from "@/components/app/photos";
 import { useUI } from "@/components/app/ui-state";
@@ -140,9 +141,9 @@ function Workspace({ id }: { id: string }) {
 
   return (
     <>
-      <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <BannerSurface as="header" variant="visit" className="mb-4 px-4 py-4 sm:px-6"><div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <button aria-label="Back to patient" onClick={() => (dirty ? setLeave(`/patients/${p.id}`) : router.push(`/patients/${p.id}`))} className="grid size-10 shrink-0 place-items-center rounded-lg border border-line bg-white hover:bg-cloud"><ArrowLeft className="size-4" /></button>
+          <button aria-label="Back to patient" onClick={() => (dirty ? setLeave(`/patients/${p.id}`) : router.push(`/patients/${p.id}`))} className="grid size-10 shrink-0 place-items-center rounded-xl border border-white/80 bg-white/80 shadow-sm hover:bg-white"><ArrowLeft className="size-4" /></button>
           <PatientAvatar id={p.id} name={`${p.first} ${p.last}`} size={46} className="rounded-xl" />
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2"><h1 className="truncate text-[22px] font-semibold tracking-tight">{draft.type}</h1><Badge tone={locked ? "mint" : "blue"}>{locked ? "Completed · read-only" : "In progress"}</Badge>{dirty && <Badge tone="peach">Unsaved</Badge>}{(p.alerts ?? []).length > 0 && <Badge tone="peach"><AlertTriangle className="size-3" aria-hidden />{p.alerts![0].description}</Badge>}</div>
@@ -161,7 +162,7 @@ function Workspace({ id }: { id: string }) {
                 <MenuContent><MenuItem onSelect={() => { setAfterTab("billing"); setOverride({ on: false, reason: "" }); setDone(true); }}>Complete and go to billing</MenuItem></MenuContent></Menu>
             </div>)}
         </div>
-      </header>
+      </div></BannerSurface>
       {!locked && <BeforeYouStart v={draft} p={p} />}
 
       <div className="relative mb-5">

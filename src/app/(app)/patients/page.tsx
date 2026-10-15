@@ -4,7 +4,8 @@ import { isOpenStatus } from "@/lib/appointment-rules";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CalendarCheck, CalendarClock, MoreHorizontal, Search, ShieldAlert, SlidersHorizontal, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
-import { Badge, Button, EmptyState, Input, Menu, MenuContent, MenuItem, MenuTrigger, PageHeader, Pagination, Panel, Select, SkeletonRows, StatGrid, StatTile, Td, Th } from "@/components/ui";
+import { Banner, BannerStat } from "@/components/ui/banner";
+import { Badge, Button, EmptyState, Input, Menu, MenuContent, MenuItem, MenuTrigger, Pagination, Panel, Select, SkeletonRows, Td, Th } from "@/components/ui";
 import { PStatus } from "@/components/app/bits";
 import { sortAlerts } from "@/components/patient/summary";
 import { PatientAvatar } from "@/components/app/photos";
@@ -77,10 +78,8 @@ function Patients() {
 
   return (
     <>
-      <PageHeader title="Patients" subtitle={patients ? `${patients.length} patients in the practice` : "Loading patients…"} actions={<Button onClick={ui.newPatient}><UserPlus className="size-4" aria-hidden />New patient</Button>} />
-      <StatGrid>
-        {tiles.map((x) => <StatTile key={x.key} label={x.label} value={isLoading ? "–" : x.n} hint={x.hint} icon={x.icon} tone={x.tone} active={x.on} onClick={() => setF({ ...f, ...x.apply })} />)}
-      </StatGrid>
+      <Banner variant="patients" title="Patients" subtitle={patients ? `${patients.length} patients in the practice` : "Loading patients…"} actions={<Button onClick={ui.newPatient}><UserPlus className="size-4" aria-hidden />New patient</Button>}
+        stats={<>{tiles.map((x) => <BannerStat key={x.key} label={x.label} value={isLoading ? "–" : x.n} title={x.hint} icon={x.icon} tone={x.tone} active={x.on} onClick={() => setF({ ...f, ...x.apply })} />)}</>} />
 
       <Panel className="overflow-hidden">
         <div className="flex flex-wrap items-center gap-2 border-b border-line bg-white p-3">

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { CalendarDays, ClipboardList, Clock, MoreHorizontal, ShieldAlert, Tag } from "lucide-react";
+import { BannerSurface } from "@/components/ui/banner";
 import { Badge, Button, EmptyState, Menu, MenuContent, MenuItem, MenuTrigger, Skeleton } from "@/components/ui";
 import { PatientAvatar } from "@/components/app/photos";
 import { useUI } from "@/components/app/ui-state";
@@ -64,10 +65,10 @@ function Workspace({ id }: { id: string }) {
 
   return (
     <>
-      <header className="mb-4 rounded-xl border border-line bg-white px-4 py-3.5">
+      <BannerSurface as="header" variant="patient" className="mb-4 px-4 py-4 sm:px-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex min-w-0 items-start gap-3.5">
-            <PatientAvatar id={p.id} name={`${p.first} ${p.last}`} size={56} className="rounded-xl" />
+            <PatientAvatar id={p.id} name={`${p.first} ${p.last}`} size={64} className="rounded-2xl ring-4 ring-white/70" />
             <div className="min-w-0">
               <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5"><h1 className="truncate text-[22px] font-semibold leading-tight tracking-tight">{p.first} {p.last}</h1><span className="text-[13px] text-muted">{p.id} · {ageOf(p.dob)} yrs{p.status === "Inactive" ? " · Inactive" : ""}</span></div>
               <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-[13px] text-slate-600"><a href={`tel:${p.phone.replace(/[^\d+]/g, "")}`} className="hover:text-primary hover:underline">{p.phone}</a><a href={`mailto:${p.email}`} className="break-all hover:text-primary hover:underline">{p.email}</a></p>
@@ -85,12 +86,12 @@ function Workspace({ id }: { id: string }) {
             {live ? <Button id="start-visit" onClick={() => router.push(`/visits/${live.id}`)}>Resume visit</Button> : <Button id="start-visit" onClick={startVisit} loading={start.pending}>Start visit</Button>}
           </div>
         </div>
-        <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-1.5 border-t border-line pt-2.5 text-[13px]">
+        <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-1.5 border-t border-white/70 pt-2.5 text-[13px]">
           <div className="flex items-center gap-2"><CalendarDays className="size-4 text-muted" aria-hidden /><dt className="text-muted">Next appointment</dt><dd>{next ? <button onClick={() => ui.openAppt(next.id)} className="font-medium hover:text-primary hover:underline">{next.date === TODAY ? "Today" : fmtDate(next.date)}, {fmtTime(next.time)}</button> : <span className="text-muted">None booked</span>}</dd></div>
           <div className="flex items-center gap-2"><Clock className="size-4 text-muted" aria-hidden /><dt className="text-muted">Last visit</dt><dd>{last ? <Link href={`/visits/${last.id}`} className="font-medium hover:text-primary hover:underline">{fmtDate(last.date)}, {last.type}</Link> : <span className="text-muted">No completed visits</span>}</dd></div>
           {live && <div className="flex items-center gap-2"><dt className="text-muted">Visit in progress</dt><dd><Badge tone="blue">{live.type}</Badge></dd></div>}
         </dl>
-      </header>
+      </BannerSurface>
 
       <div role="tablist" aria-label="Patient workspace" onKeyDown={(e) => {
         const i = primary.findIndex(([k]) => k === tab); const n = primary.length;

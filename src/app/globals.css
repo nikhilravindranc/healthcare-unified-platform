@@ -13,6 +13,8 @@
   --line: #e2e7eb;
   --active: #eaf3fb;
   --selected: #e5f8fb;
+  --t1: #F1EEFB; --t2: #E6F1FB; --t3: #DFF4F0; --t4: #FFF3DC;
+  --canvas-1: #F5F7FB; --canvas-2: #EEF3F9; --canvas-3: #F1F7F6;
   --shadow-card: 0 1px 2px rgba(38, 56, 75, 0.04), 0 4px 16px rgba(38, 56, 75, 0.05);
   --shadow-lift: 0 2px 4px rgba(38, 56, 75, 0.05), 0 12px 28px rgba(38, 56, 75, 0.10);
   --shadow-btn: 0 1px 2px rgba(40, 103, 178, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.14);

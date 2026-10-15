@@ -177,7 +177,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      <div className={cn("min-h-screen bg-cloud", collapsed ? "md:pl-[68px]" : "md:pl-[232px]")}>
+      <div className={cn("min-h-screen", collapsed ? "md:pl-[68px]" : "md:pl-[232px]")} style={{ background: "linear-gradient(160deg, var(--canvas-1) 0%, var(--canvas-2) 48%, var(--canvas-3) 100%) fixed" }}>
         {/* Top bar */}
         <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-line/70 glass px-4 lg:px-8">
           <div className="md:hidden"><Logo variant="icon" height={32} /></div>

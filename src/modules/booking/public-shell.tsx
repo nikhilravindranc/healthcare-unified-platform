@@ -2,7 +2,8 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { CalendarClock, Phone, ShieldCheck } from "lucide-react";
+import { CalendarClock, Check, Phone, ShieldCheck } from "lucide-react";
+import { BannerSurface } from "@/components/ui/banner";
 import { Button, Logo } from "@/components/ui";
 import { fmtTime } from "@/lib/db";
 import { useSettings } from "@/lib/settings";
@@ -36,9 +37,9 @@ export function PublicShell({ children, title, subtitle, narrow }: { children: R
     </div>
   );
   return (
-    <div className="flex min-h-screen flex-col bg-[#F5F8FB]">
+    <div className="flex min-h-screen flex-col" style={{ background: "linear-gradient(160deg, var(--canvas-1) 0%, var(--canvas-2) 50%, var(--canvas-3) 100%) fixed" }}>
       <header className="sticky top-0 z-30 border-b border-line bg-white/90 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
           <Link href="/book" className="flex min-w-0 items-center gap-3" aria-label={`${st.clinicName}, book an appointment`}>
             <Logo height={26} />
             <span className="hidden h-6 w-px bg-line sm:block" aria-hidden />
@@ -51,19 +52,22 @@ export function PublicShell({ children, title, subtitle, narrow }: { children: R
         </div>
       </header>
 
-      <div className="border-b border-line bg-gradient-to-b from-active to-[#F5F8FB]">
-        <div className={cn("mx-auto px-4 pb-8 pt-8 sm:px-6", narrow ? "max-w-xl" : "max-w-6xl")}>
-          <p className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-[#cfe3f5] bg-white/80 px-2.5 py-1 text-xs font-medium text-primary"><ShieldCheck className="size-3.5" aria-hidden />Demo booking page</p>
-          {title && <h1 className="text-2xl font-semibold tracking-tight sm:text-[28px]">{title}</h1>}
-          {subtitle && <p className="mt-1 max-w-2xl text-sm text-slate-600">{subtitle}</p>}
-          <p className="mt-3 max-w-3xl text-xs text-muted">Times are sample availability, not real-time. No confirmation email or text is sent. Bookings made here appear in the practice&apos;s appointments for this demo session.</p>
-        </div>
+      <div className={cn("mx-auto w-full px-4 pt-6 sm:px-6", narrow ? "max-w-xl" : "max-w-7xl")}>
+        <BannerSurface variant="booking" className={cn("px-5 py-6 sm:px-8", narrow ? "" : "lg:py-9")}>
+          <div className={cn("max-w-2xl", !narrow && "lg:max-w-[52%]")}>
+            <p className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-white/80 bg-white/75 px-2.5 py-1 text-xs font-medium text-primary"><ShieldCheck className="size-3.5" aria-hidden />Demo booking page</p>
+            {title && <h1 className="text-2xl font-semibold tracking-tight sm:text-[30px]">{title}</h1>}
+            {subtitle && <p className="mt-1.5 text-[15px] text-slate-700">{subtitle}</p>}
+            {!narrow && <ul className="mt-4 flex flex-wrap gap-2 text-[13px] text-slate-700">{["No account needed", "Choose your provider or any available", "Change or cancel online"].map((t) => <li key={t} className="inline-flex items-center gap-1.5 rounded-full bg-white/75 px-3 py-1 shadow-sm"><Check className="size-3.5 text-primary" aria-hidden />{t}</li>)}</ul>}
+            <p className="mt-3 max-w-xl text-xs text-slate-600">Times are sample availability, not real-time. No confirmation email or text is sent. Bookings made here appear in the practice&apos;s appointments for this demo session.</p>
+          </div>
+        </BannerSurface>
       </div>
 
-      <main className={cn("mx-auto w-full flex-1 px-4 pb-16 pt-6 sm:px-6", narrow ? "max-w-xl" : "max-w-6xl")}>{children}</main>
+      <main className={cn("mx-auto w-full flex-1 px-4 pb-16 pt-6 sm:px-6", narrow ? "max-w-xl" : "max-w-7xl")}>{children}</main>
 
       <footer className="border-t border-line bg-white">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-xs text-muted sm:px-6">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-xs text-muted sm:px-6">
           <span>{st.clinicName} · Open {fmtTime(st.openTime)} to {fmtTime(st.closeTime)}</span>
           <Link href="/book/manage" className="font-medium text-primary hover:underline">Change or cancel a booking</Link>
         </div>

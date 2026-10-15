@@ -1,7 +1,9 @@
 "use client";
 import Link from "next/link";
+import { Avatar } from "@/components/ui";
 import { useRouter } from "next/navigation";
 import { CalendarCheck, ExternalLink, UserRound } from "lucide-react";
+import { BannerSurface } from "@/components/ui/banner";
 import { Alert, Badge, Button, Sheet, StatusBadge } from "@/components/ui";
 import { CONSENT_LABEL } from "../comms/eligibility";
 import { useUI } from "@/components/app/ui-state";
@@ -88,9 +90,9 @@ export function ContactDetailSheet({ contact: c, access, onClose, page }: { /** 
   );
   if (page) {
     return (
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto max-w-4xl">
         <Link href="/crm" className="text-[13px] text-primary hover:underline">← All contacts</Link>
-        <div className="mb-4 mt-1"><h1 className="text-[24px] font-semibold tracking-tight">{c?.name ?? "Contact"}</h1><p className="text-[13px] text-muted">{desc}</p></div>
+        <BannerSurface variant="contact" className="mb-4 mt-2 px-5 py-5 sm:px-6"><div className="flex flex-wrap items-center gap-4"><Avatar name={c?.name ?? "Contact"} size={56} tint="rgba(255,255,255,0.85)" /><div className="min-w-0"><h1 className="text-[24px] font-semibold leading-tight tracking-tight">{c?.name ?? "Contact"}</h1><p className="mt-0.5 text-[13px] text-slate-700">{desc}</p></div>{c && <span className="ml-auto"><StageBadge s={c.stage} /></span>}</div></BannerSurface>
         <div className="rounded-xl border border-line bg-white p-5">{content}</div>
       </div>
     );
